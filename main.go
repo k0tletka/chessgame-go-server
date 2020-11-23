@@ -1,15 +1,17 @@
 package main
 
 import (
+    "net/http"
+    "fmt"
+    "log"
+    "os"
+
     "GoChessgameServer/logger"
     c "GoChessgameServer/conf"
     _ "GoChessgameServer/util"
     _ "GoChessgameServer/database"
-    "net/http"
-    "fmt"
-    "log"
-    "io"
-    "os"
+
+    _ "github.com/gorilla/mux"
 )
 
 func main() {
@@ -21,10 +23,8 @@ func main() {
         mainLogger.Fatalln("Error: listenaddr or listenport is not set")
     }
 
-    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        mainLogger.Println(r.URL.Path)
-        io.WriteString(w, "Hello, world");
-    })
+    // Define router, bind handlers on controllers and define middleware
+    // for authetication handling
 
     mainLogger.Fatalln(http.ListenAndServe(fmt.Sprintf(
         "%s:%s",
