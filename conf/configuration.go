@@ -15,9 +15,12 @@ type Configuration struct {
 }
 
 type Database struct {
+    ServerName string `toml:"server"`
+    InstanceName string `toml:"instance"`
     DBName string `toml:"dbname"`
     Username string `toml:"user"`
     Password string `toml:"pass"`
+    ConnectionTimeout int `toml:"connection_timeout"`
 }
 
 type Application struct {
@@ -42,6 +45,7 @@ func init() {
     if err != nil {
         confLogger.Fatalln(err)
     }
+    defer readStream.Close()
 
     // Read data
     buffer := bytes.Buffer{}

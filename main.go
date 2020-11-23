@@ -4,6 +4,7 @@ import (
     "GoChessgameServer/logger"
     c "GoChessgameServer/conf"
     _ "GoChessgameServer/util"
+    _ "GoChessgameServer/database"
     "net/http"
     "fmt"
     "log"
