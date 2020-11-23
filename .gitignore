@@ -1,2 +1,6 @@
-# Ignore build path
+# Ignore build folder and other go files
 bin/
+go.sum
+
+# Ignore configuration file
+configuration.toml
