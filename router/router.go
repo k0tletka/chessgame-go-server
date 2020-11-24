@@ -14,5 +14,9 @@ func init() {
     Router = mux.NewRouter()
 
     // Handlers on a variety of controllers
-    Router.HandleFunc("/hello", controllers.HelloController).Methods("GET")
+    Router.HandleFunc("/api/user/create", controllers.CreateLogin).Methods("POST")
+    Router.HandleFunc("/api/hello", controllers.HelloController).Methods("GET")
+
+    // Middleware for token checking
+    Router.Use(controllers.TokenChecker)
 }

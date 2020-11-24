@@ -7,9 +7,9 @@ import (
     "net/http"
 
     "GoChessgameServer/logger"
-    r "GoChessgameServer/router"
     c "GoChessgameServer/conf"
-    _ "GoChessgameServer/util"
+    _ "GoChessgameServer/store"
+    r "GoChessgameServer/router"
     _ "GoChessgameServer/database"
 )
 
@@ -22,6 +22,7 @@ func main() {
         mainLogger.Fatalln("Error: listenaddr or listenport is not set")
     }
 
+    // Set router handler and start REST API Server
     http.Handle("/", r.Router)
     mainLogger.Fatalln(http.ListenAndServe(fmt.Sprintf(
         "%s:%s",

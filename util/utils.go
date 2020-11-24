@@ -5,12 +5,14 @@ import (
     "net/http"
 )
 
-func ErrorJson(msgid int, message string) ([]byte, error) {
-    return json.Marshal(map[string]interface{} { "msgid": msgid, "error": message })
+func ErrorJson(message string) []byte {
+    res, _ := json.Marshal(map[string]interface{} { "error": message })
+    return res
 }
 
-func MessageJson(msgid int, message string) ([]byte, error) {
-    return json.Marshal(map[string]interface{} { "msgid": msgid, "message": message })
+func MessageJson(message string) []byte {
+    res, _ := json.Marshal(map[string]interface{} { "message": message })
+    return res
 }
 
 func WriteResponse(w http.ResponseWriter, jsonSlice []byte) {
