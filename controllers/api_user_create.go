@@ -3,7 +3,6 @@ package controllers
 import (
     "net/http"
     "encoding/json"
-    "regexp"
     "crypto/rand"
 
     u "GoChessgameServer/util"
@@ -14,13 +13,6 @@ import (
     jwt "github.com/dgrijalva/jwt-go"
 )
 
-type newLogin struct {
-    Login string `json:"login"`
-    Email string `json:"mail"`
-    Password string `json:"pass"`
-}
-
-
 // This controller create new users in the database
 // and returns signed jwt token to client
 func CreateLogin(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +22,11 @@ func CreateLogin(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusForbidden)
         u.WriteResponse(w, jsonslice)
     }
-    req := newLogin{}
+    req := struct{
+        Login string `json:"login"`
+        Email string `json:"mail"`
+        Password string `json:"pass"`
+    }{}
 
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError("Invalid request")
@@ -39,9 +35,14 @@ func CreateLogin(w http.ResponseWriter, r *http.Request) {
     }
 
     // Validate request
-    success := validate(req)
-    if !success {
-        writeError("Passed values is not matched with requirements to values")
+    if req.Login != "" && req.Email != "" && req.Password != "" {
+        success := u.ValidateCredentials(req.Login, req.Email, req.Password)
+        if !success {
+            writeError("Passed values is not matched with requirements to values")
+            return
+        }
+    } else {
+        writeError("One of the email, login or password is not specified, aborting")
         return
     }
 
@@ -49,6 +50,7 @@ func CreateLogin(w http.ResponseWriter, r *http.Request) {
     results, err := database.QueryBlocking("SELECT Login, Email FROM dbo.Users WHERE Login = $1 OR Email = $2", req.Login, req.Email)
     if err != nil {
         writeError("Connection error")
+        w.WriteHeader(http.StatusInternalServerError)
         contrLogger.Printf("CreateLogin: Error when making query: %s\n", err.Error())
         return
     }
@@ -74,7 +76,7 @@ func CreateLogin(w http.ResponseWriter, r *http.Request) {
     // Insert new account into db table
     _, err = database.QueryExecBlocking(`
     INSERT INTO dbo.Users(Login, Email, PasswordHash, PasswordHashSalt)
-    VALUES ($1, $2, $3, $4)`, req.Login, req.Email, string(digest2[:]), string(salt))
+    VALUES ($1, $2, $3, $4)`, req.Login, req.Email, digest2[:], salt)
     if err != nil {
         writeError("Server error")
         w.WriteHeader(http.StatusInternalServerError)
@@ -106,31 +108,4 @@ func CreateLogin(w http.ResponseWriter, r *http.Request) {
 
     // Log new user
     contrLogger.Printf("CreateLogin: Created new user %s\n", req.Login)
-
-}
-
-func validate(login newLogin) bool {
-
-    // Validate login (must be with lower symbols and numbers, and from 6 to 100 symbols)
-    if matched, err := regexp.MatchString(`^[a-z0-9]{6,100}$`, login.Login); err != nil || !matched {
-        return false
-    }
-
-    // Validate email
-    if matched, err := regexp.MatchString(`^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$`, login.Email); err != nil || !matched {
-        return false
-    }
-
-    // Validate password
-    if matched, err := regexp.MatchString(`[0-9]`, login.Password); err != nil || !matched {
-        return false
-    }
-    if matched, err := regexp.MatchString(`[A-Z]`, login.Password); err != nil || !matched {
-        return false
-    }
-    if matched, err := regexp.MatchString(`^\S{8,}$`, login.Password); err != nil || !matched {
-        return false
-    }
-
-    return true
 }

@@ -33,6 +33,10 @@ func ParseRows(rows *sql.Rows) (*RowsResult, error) {
 
     for rows.Next() {
         vals := make([]interface{}, len(cols))
+        for i := 0; i < len(cols); i++ {
+            vals[i] = &vals[i]
+        }
+
         err = rows.Scan(vals...)
         if err != nil {
             dbLogger.Printf("Error occured when parsing row: %s\n", err.Error())

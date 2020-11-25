@@ -42,7 +42,7 @@ func init() {
     // Init query executor - go subroutine, that reads queries from channel and executes
     // they synchronically
     initQueryExecutor()
-    dbLogger.Println("Database connection initialized")
+    dbLogger.Println("Database initialized")
 
     // Execute schema creator, that database schema will be created
     // if some elements a absent
@@ -62,8 +62,8 @@ func CreateSchemaIfNotExists() {
         CREATE TABLE dbo.Users (
             Login VARCHAR(100) PRIMARY KEY,
             Email VARCHAR(100) NOT NULL,
-            PasswordHash VARCHAR(256) NOT NULL,
-            PasswordHashSalt VARCHAR(256) NOT NULL,
+            PasswordHash VARBINARY(1000) NOT NULL,
+            PasswordHashSalt VARBINARY(1000) NOT NULL,
         )
     END
     IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'GamesHistory')
