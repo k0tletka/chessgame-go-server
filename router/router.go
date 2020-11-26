@@ -16,7 +16,7 @@ func init() {
     // Handlers on a variety of controllers
     Router.HandleFunc("/api/user/create", controllers.CreateLogin).Methods("POST")
     Router.HandleFunc("/api/user/login", controllers.LoginUsers).Methods("POST")
-    Router.HandleFunc("/api/hello", controllers.HelloController).Methods("GET")
+    Router.HandleFunc("/api/user/isadmin", controllers.IsAdmin).Methods("GET")
 
     // Middleware for token checking
     Router.Use(controllers.TokenChecker)

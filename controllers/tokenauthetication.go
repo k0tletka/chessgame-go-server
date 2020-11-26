@@ -70,6 +70,7 @@ func TokenChecker(next http.Handler) http.Handler {
         }
 
         contrLogger.Printf("TokenChecker: %s is making request", claims.Login)
+
         ctx := context.WithValue(r.Context(), "login", claims.Login)
         r = r.WithContext(ctx)
         next.ServeHTTP(w, r)

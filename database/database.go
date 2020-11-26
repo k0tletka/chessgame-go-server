@@ -62,6 +62,7 @@ func CreateSchemaIfNotExists() {
         CREATE TABLE dbo.Users (
             Login VARCHAR(100) PRIMARY KEY,
             Email VARCHAR(100) NOT NULL,
+            IsAdmin BIT NOT NULL DEFAULT 0,
             PasswordHash VARBINARY(1000) NOT NULL,
             PasswordHashSalt VARBINARY(1000) NOT NULL,
         )
