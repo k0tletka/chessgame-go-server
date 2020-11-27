@@ -3,6 +3,7 @@ package controllers
 import (
     "net/http"
     "encoding/json"
+    "reflect"
 
     u "GoChessgameServer/util"
     "GoChessgameServer/database"
@@ -21,12 +22,13 @@ func LoginUsers(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusForbidden)
         u.WriteResponse(w, jsonslice)
     }
-    req := struct{
+    type reqType struct {
         Login string `json:"login"`
         Password string `json:"pass"`
-    }{}
+    }
+    req := reqType{}
 
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || reflect.DeepEqual(req, reqType{}) {
         writeError("Invalid request")
         contrLogger.Printf("LoginUsers: Error when parsing request from client: %s\n", err.Error())
         return

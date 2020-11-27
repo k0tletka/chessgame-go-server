@@ -4,6 +4,7 @@ import (
     "net/http"
     "encoding/json"
     "crypto/rand"
+    "reflect"
 
     u "GoChessgameServer/util"
     "GoChessgameServer/database"
@@ -22,13 +23,14 @@ func CreateLogin(w http.ResponseWriter, r *http.Request) {
         w.WriteHeader(http.StatusForbidden)
         u.WriteResponse(w, jsonslice)
     }
-    req := struct{
+    type reqType struct {
         Login string `json:"login"`
         Email string `json:"mail"`
         Password string `json:"pass"`
-    }{}
+    }
+    req := reqType{}
 
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || reflect.DeepEqual(req, reqType{}) {
         writeError("Invalid request")
         contrLogger.Printf("CreateLoggin: Error when parsing request from client: %s\n", err.Error())
         return
