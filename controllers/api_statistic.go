@@ -14,11 +14,7 @@ import (
 // It can be used, for example, for displaying user records table
 func UserStatistic(w http.ResponseWriter, r *http.Request) {
 
-    writeError := func(message string) {
-        jsonslice := u.ErrorJson(message)
-        w.WriteHeader(http.StatusForbidden)
-        u.WriteResponse(w, jsonslice)
-    }
+    writeError := u.WriteErrorCreator(w)
 
     contextUser := r.Context().Value("login").(string)
     var results *database.RowsResult

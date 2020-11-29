@@ -17,11 +17,8 @@ import (
 // into application
 func LoginUsers(w http.ResponseWriter, r *http.Request) {
 
-    writeError := func(message string) {
-        jsonslice := u.ErrorJson(message)
-        w.WriteHeader(http.StatusForbidden)
-        u.WriteResponse(w, jsonslice)
-    }
+    writeError := u.WriteErrorCreator(w)
+
     type reqType struct {
         Login string `json:"login"`
         Password string `json:"pass"`

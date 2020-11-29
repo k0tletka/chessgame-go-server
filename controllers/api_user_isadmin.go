@@ -12,11 +12,7 @@ import (
 // depending on if user is admin on this server
 func IsAdmin(w http.ResponseWriter, r *http.Request) {
 
-    writeError := func(message string) {
-        jsonslice := u.ErrorJson(message)
-        w.WriteHeader(http.StatusForbidden)
-        u.WriteResponse(w, jsonslice)
-    }
+    writeError := u.WriteErrorCreator(w)
 
     // Get current user
     user := r.Context().Value("login").(string)

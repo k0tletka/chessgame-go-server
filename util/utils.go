@@ -53,3 +53,13 @@ func ValidateCredentials(login string, email string, password string) bool {
 
     return true
 }
+
+// This function returns writeError function with specified ResponseWriter variable
+func WriteErrorCreator(w http.ResponseWriter) func(string) {
+
+    return func(message string) {
+        jsonslice := ErrorJson(message)
+        w.WriteHeader(http.StatusForbidden)
+        WriteResponse(w, jsonslice)
+    }
+}
