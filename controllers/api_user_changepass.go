@@ -42,7 +42,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
     }
 
     // Check password if its not the same password as old one
-    results, err := database.QueryBlocking(`SELECT PasswordHash, PasswordHashSalt FROM dbo.Users WHERE Login = %1`, user)
+    results, err := database.QueryBlocking(`SELECT PasswordHash, PasswordHashSalt FROM dbo.Users WHERE Login = $1`, user)
     if err != nil {
         writeError("Connection error")
         w.WriteHeader(http.StatusInternalServerError)
@@ -80,9 +80,9 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 
     // Update password
     result, err := database.QueryExecBlocking(`
-    UPDATE dbo.Users SET PasswordHash = %1, PasswordHashSalt = %2
+    UPDATE dbo.Users SET PasswordHash = $1, PasswordHashSalt = $2
     FROM dbo.Users
-    WHERE Login = %1`, newPasswordDigest2[:], newPasswordSalt)
+    WHERE Login = $3`, newPasswordDigest2[:], newPasswordSalt, user)
     if err != nil {
         writeError("Connection error")
         w.WriteHeader(http.StatusInternalServerError)

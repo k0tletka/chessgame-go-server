@@ -5,7 +5,6 @@ import (
     "encoding/json"
 
     u "GoChessgameServer/util"
-    "GoChessgameServer/database"
 )
 
 // This function returns either true or false
@@ -16,21 +15,7 @@ func IsAdmin(w http.ResponseWriter, r *http.Request) {
 
     // Get current user
     user := r.Context().Value("login").(string)
-
-    // Make query to database
-    results, err := database.QueryBlocking("SELECT TOP 1 IsAdmin FROM dbo.Users WHERE Login = $1", user)
-    if err != nil {
-        writeError("Connection error")
-        w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("IsAdmin: Error when making request: %s\n", err.Error())
-        return
-    }
-    if len(*results) == 0 {
-        writeError("Oops, it seems that you account has been deleted. Please, restart you application")
-        return
-    }
-
-    isAdmin := (*results)[0]["IsAdmin"].(bool)
+    isAdmin := r.Context().Value("isadmin").(bool)
 
     // Return isadmin to client
     resp := struct{
@@ -39,7 +24,7 @@ func IsAdmin(w http.ResponseWriter, r *http.Request) {
         IsAdmin: isAdmin,
     }
 
-    if err = json.NewEncoder(w).Encode(resp); err != nil {
+    if err := json.NewEncoder(w).Encode(resp); err != nil {
         writeError("Server error")
         w.WriteHeader(http.StatusInternalServerError)
         contrLogger.Printf("IsAdmin: Error when sending response: %s\n", err.Error())

@@ -18,6 +18,7 @@ func init() {
     Router.HandleFunc("/api/user/login", controllers.LoginUsers).Methods("POST")
     Router.HandleFunc("/api/user/isadmin", controllers.IsAdmin).Methods("GET")
     Router.HandleFunc("/api/user/changepass", controllers.ChangePassword).Methods("POST")
+    Router.HandleFunc("/api/user/info", controllers.UserInfo).Methods("GET")
     Router.HandleFunc("/api/playerstat", controllers.UserStatistic).Methods("GET", "POST")
 
     // Middleware for token checking

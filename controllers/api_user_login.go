@@ -70,7 +70,8 @@ func LoginUsers(w http.ResponseWriter, r *http.Request) {
     }
 
     // Password valid, generate jwt token
-    claim := &store.JWTClaims{Login: req.Login}
+    isAdmin := (*results)[0]["IsAdmin"].(bool)
+    claim := &store.JWTClaims{Login: req.Login, IsAdmin: isAdmin}
     token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), claim)
     tokenString, _ := token.SignedString(store.JWTKey)
 

@@ -84,7 +84,7 @@ func CreateLogin(w http.ResponseWriter, r *http.Request) {
     }
 
     // Create new token
-    claim := &store.JWTClaims{Login: req.Login}
+    claim := &store.JWTClaims{Login: req.Login, IsAdmin: false}
     token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), claim)
     tokenString, _ := token.SignedString(store.JWTKey)
 
