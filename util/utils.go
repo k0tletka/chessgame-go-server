@@ -63,3 +63,9 @@ func WriteErrorCreator(w http.ResponseWriter) func(string) {
         WriteResponse(w, jsonslice)
     }
 }
+
+// Function that performs abs with int valies
+func Abs(n int) int {
+    y := n >> 31
+    return (y ^ n) - y
+}

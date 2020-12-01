@@ -26,6 +26,7 @@ type Database struct {
 type Application struct {
     ListenAddr string `toml:"listenaddr"`
     ListenPort string `toml:"listenport"`
+    MarkdownFile string `toml:"markdown_file"`
 }
 
 // Conf variable

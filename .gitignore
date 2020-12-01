@@ -4,3 +4,4 @@ go.sum
 
 # Ignore configuration file
 configuration.toml
+motd.md

@@ -6,8 +6,10 @@ import (
     "os"
     "sync"
     "errors"
+    "io/ioutil"
 
     "GoChessgameServer/logger"
+    c "GoChessgameServer/conf"
 
     jwt "github.com/dgrijalva/jwt-go"
     lp "github.com/jcuga/golongpoll"
@@ -25,8 +27,15 @@ var GameStores = []GameStore{}
 
 // Mutexs for thread-safe operations on
 // game processes
-var createGameMutex = sync.Mutex{}
-var removeGameMutex = sync.Mutex{}
+var gameStoresMutex = sync.Mutex{}
+
+// Longpolls
+var WaitGameLM *lp.LongpollManager
+var SendTurnLM *lp.LongpollManager
+var EndGameLM *lp.LongpollManager
+
+// String variable for markdown motd storing
+var MotdString string
 
 // Errors
 var GameNotFoundError = errors.New("Game with the specified id is not found")
@@ -43,8 +52,8 @@ type GameStore struct {
     GameID int
     PlayerOneLogin string
     PlayerTwoLogin string
-    EndGameManager *lp.LongpollManager
-    SendTurnManager *lp.LongpollManager
+    GameTitle string
+    AckChannel chan string
 }
 
 func init() {
@@ -57,46 +66,79 @@ func init() {
     if err != nil {
         storeLogger.Fatalf("Error when generating key: %s", err.Error())
     }
+
+    // Load markdown file
+    mdFile := c.Conf.App.MarkdownFile
+    if mdFile == "" {
+        storeLogger.Println("Markdown file is not set, skipping...")
+        MotdString = "Motd file is not set on the server."
+        return
+    }
+
+    mdFd, err := os.OpenFile(mdFile, os.O_RDONLY | os.O_CREATE, 0755)
+    if err != nil {
+        storeLogger.Fatalln(err)
+    }
+    defer mdFd.Close()
+
+    // Read markdown into string variable
+    readedMotd, err := ioutil.ReadAll(mdFd)
+    if err != nil {
+        storeLogger.Fatalln(err)
+    }
+    MotdString = string(readedMotd)
+
+    // Initialize longpoll managers
+    WaitGameLM, err = lp.StartLongpoll(lp.Options{})
+    if err != nil {
+        storeLogger.Fatalln(err)
+    }
+    SendTurnLM, err = lp.StartLongpoll(lp.Options{})
+    if err != nil {
+        storeLogger.Fatalln(err)
+    }
+    EndGameLM, err = lp.StartLongpoll(lp.Options{})
+    if err != nil {
+        storeLogger.Fatalln(err)
+    }
 }
 
 // Functions to add, remove and getting game by id
-func RegisterNewGameStore(playerone string, playertwo string) int {
+func RegisterNewGameStore(gametitle string, playerone string, playertwo string) int {
 
     // Thread-safe operation
-    createGameMutex.Lock()
-
-    endGameManager, _ := lp.StartLongpoll(lp.Options{})
-    sendTurnManager, _ := lp.StartLongpoll(lp.Options{})
+    gameStoresMutex.Lock()
     idGameCounter++
 
-    _ = append(GameStores, GameStore{
+    GameStores = append(GameStores, GameStore{
         GameID: idGameCounter,
         PlayerOneLogin: playerone,
         PlayerTwoLogin: playertwo,
-        EndGameManager: endGameManager,
-        SendTurnManager: sendTurnManager,
+        GameTitle: gametitle,
+        AckChannel: make(chan string),
     })
 
-    createGameMutex.Unlock()
+    gameStoresMutex.Unlock()
     return idGameCounter
 }
 
 func RemoveGameStore(id int) error {
 
     // Thread-safe operation
-    removeGameMutex.Lock()
+    gameStoresMutex.Lock()
 
     for i, proc := range GameStores {
         if proc.GameID == id {
+            close(GameStores[i].AckChannel)
             GameStores[i] = GameStores[len(GameStores) - 1]
             GameStores = GameStores[:len(GameStores) - 1]
 
-            removeGameMutex.Unlock()
+            gameStoresMutex.Unlock()
             return nil
         }
     }
 
-    removeGameMutex.Unlock()
+    gameStoresMutex.Unlock()
     return GameNotFoundError
 }
 

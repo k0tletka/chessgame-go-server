@@ -2,9 +2,9 @@ package game
 
 import (
     "errors"
-    "math"
 
     "GoChessgameServer/store"
+    u "GoChessgameServer/util"
 )
 
 // Errors
@@ -79,6 +79,8 @@ func (p Pawn) canFigurePassWhite(altX int, altY int) bool {
             return true
         }
     }
+
+    return false
 }
 
 func (p Pawn) canFigurePassBlack(altX int, altY int) bool {
@@ -90,7 +92,7 @@ func (p Pawn) canFigurePassBlack(altX int, altY int) bool {
             return true
         }
     } else {
-        if (p.y >= 1 && altY == -1 && table[p.x][p.y - 1] == nil) || (p.x >= 2 (altY == -2 || altY == -1) && table[p.x][p.y - 1] == nil && table[p.x][p.y - 2] == nil) {
+        if (p.y >= 1 && altY == -1 && table[p.x][p.y - 1] == nil) || (p.x >= 2 && (altY == -2 || altY == -1) && table[p.x][p.y - 1] == nil && table[p.x][p.y - 2] == nil) {
             return true
         }
     }
@@ -114,6 +116,8 @@ func (p Pawn) canFigurePassBlack(altX int, altY int) bool {
             return true
         }
     }
+
+    return false
 }
 
 func (p Pawn) Pass(altX int, altY int) error {
@@ -153,7 +157,7 @@ type Rook struct {
     cTable *ChessTable
     x int
     y int
-    isBlack int
+    isBlack bool
 }
 
 func (r Rook) CanFigurePass(altX int, altY int) bool {
@@ -197,7 +201,7 @@ func (r Rook) canFigurePassInner(altX int, altY int) bool {
                 }
             }
         } else {
-            count = r.y - 1
+            count := r.y - 1
             for i := count; i > r.y + altY; i-- {
                 if table[r.x][i] != nil {
                     return false
@@ -212,6 +216,8 @@ func (r Rook) canFigurePassInner(altX int, altY int) bool {
 }
 
 func (r Rook) Pass(altX int, altY int) error {
+
+    table := (*r.cTable)
 
     if !r.CanFigurePass(altX, altY) {
         return CantPassError
@@ -242,7 +248,7 @@ type Horse struct {
     cTable *ChessTable
     x int
     y int
-    isBlack int
+    isBlack bool
 }
 
 func (h Horse) CanFigurePass(altX int, altY int) bool {
@@ -255,9 +261,9 @@ func (h Horse) CanFigurePass(altX int, altY int) bool {
 }
 
 func (h Horse) canFigurePassInner(altX int, altY int) bool {
-    table := (*r.cTable)
+    table := (*h.cTable)
 
-    if altX != 0 && altY != 0 && ((math.Abs(altX) == 2 && math.Abs(altY) == 1) || (math.Abs(altX) == 1 && math.Abs(altY) == 2)) {
+    if altX != 0 && altY != 0 && ((u.Abs(altX) == 2 && u.Abs(altY) == 1) || (u.Abs(altX) == 1 && u.Abs(altY) == 2)) {
         destelem := table[h.x + altX][h.y + altY]
         if destelem != nil && (destelem.IsFigureBlack() == h.isBlack) {
             return false
@@ -269,6 +275,8 @@ func (h Horse) canFigurePassInner(altX int, altY int) bool {
 }
 
 func (h Horse) Pass(altX int, altY int) error {
+
+    table := (*h.cTable)
 
     if !h.CanFigurePass(altX, altY) {
         return CantPassError
@@ -293,6 +301,107 @@ func (h Horse) Pass(altX int, altY int) error {
 
 func (h Horse) IsFigureBlack() bool {
     return h.isBlack
+}
+
+type Elephant struct {
+    cTable *ChessTable
+    x int
+    y int
+    isBlack bool
+}
+
+func (e Elephant) CanFigurePass(altX int, altY int) bool {
+
+    if e.isBlack {
+        return e.canFigurePassInner(-altX, -altY)
+    } else {
+        return e.canFigurePassInner(altX, altY)
+    }
+}
+
+func (e Elephant) canFigurePassInner(altX int, altY int) bool {
+    table := (*e.cTable)
+
+    if altY != 0 && altX != 0 && u.Abs(altX) == u.Abs(altY) && e.y + altY <= 8 && e.y + altY >= 0 && e.x + altX <= 8 && e.x + altX >= 0 {
+        if altX > 0 && altY > 0 {
+            countX := e.x + 1
+            countY := e.y + 1
+
+            for e.x + altX > countX && e.y + altX > countY {
+                if table[countX][countY] != nil {
+                    return false
+                }
+                countX++
+                countY++
+            }
+        } else if altX > 0 && altY < 0 {
+            countX := e.x + 1
+            countY := e.y - 1
+
+            for e.x + altX > countX && e.y + altX < countY {
+                if table[countX][countY] != nil {
+                    return false
+                }
+                countX++
+                countY--
+            }
+        } else if altX < 0 && altY > 0 {
+            countX := e.x - 1
+            countY := e.y + 1
+
+            for e.x + altX < countX && e.y + altX > countY {
+                if table[countX][countY] != nil {
+                    return false
+                }
+                countX--
+                countY++
+            }
+        } else {
+            countX := e.x - 1
+            countY := e.y - 1
+
+            for e.x + altX < countX && e.y + altX < countY {
+                if table[countX][countY] != nil {
+                    return false
+                }
+                countX--
+                countY--
+            }
+        }
+
+        return !(table[e.x + altX][e.y + altY].IsFigureBlack() == e.isBlack)
+    }
+
+    return false
+}
+
+func (e Elephant) Pass(altX int, altY int) error {
+
+    table := (*e.cTable)
+
+    if !e.CanFigurePass(altX, altY) {
+        return CantPassError
+    }
+
+    if e.isBlack {
+        e.x -= altX
+        e.y -= altY
+
+        table[e.x - altX][e.y - altY] = table[e.x][e.y]
+        table[e.x - altX][e.y + altY] = nil
+    } else {
+        e.x += altX
+        e.y += altY
+
+        table[e.x + altX][e.y + altY] = table[e.x][e.y]
+        table[e.x - altX][e.y - altY] = nil
+    }
+
+    return nil
+}
+
+func (e Elephant) IsFigureBlack() bool {
+    return e.isBlack
 }
 
 type Queen struct {
@@ -355,7 +464,7 @@ func (q Queen) canFigurePassInner(altX int, altY int) bool {
             return !(table[q.x][q.y + altY].IsFigureBlack() == q.isBlack)
         }
 
-        if altY != 0 && altX != 0 && math.Abs(altX) == math.Abs(altY) {
+        if altY != 0 && altX != 0 && u.Abs(altX) == u.Abs(altY) {
             if altX > 0 && altY > 0 {
                 countX := q.x + 1
                 countY := q.y + 1
@@ -411,6 +520,8 @@ func (q Queen) canFigurePassInner(altX int, altY int) bool {
 
 func (q Queen) Pass(altX int, altY int) error {
 
+    table := (*q.cTable)
+
     if !q.CanFigurePass(altX, altY) {
         return CantPassError
     }
@@ -456,8 +567,8 @@ func (k King) canFigurePassInner(altX int, altY int) bool {
     table := (*k.cTable)
 
     if altX == 0 && altY == 0 { return false; }
-    if (altX == 0 || math.Abs(altX) == 1) && (altY == 0 || math.Abs(altY) == 1) {
-        if table[k.x + altX][k.y + altY] != nil && table[k.x + altX][k.y + altY].IsFigureBlack() == r.isBlack {
+    if (altX == 0 || u.Abs(altX) == 1) && (altY == 0 || u.Abs(altY) == 1) {
+        if table[k.x + altX][k.y + altY] != nil && table[k.x + altX][k.y + altY].IsFigureBlack() == k.isBlack {
             return false
         }
         return true
@@ -466,7 +577,9 @@ func (k King) canFigurePassInner(altX int, altY int) bool {
     return false
 }
 
-func (k King) Pass(altX int, altY int) bool {
+func (k King) Pass(altX int, altY int) error {
+
+    table := (*k.cTable)
 
     if !k.CanFigurePass(altX, altY) {
         return CantPassError

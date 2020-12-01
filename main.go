@@ -11,6 +11,7 @@ import (
     _ "GoChessgameServer/store"
     r "GoChessgameServer/router"
     _ "GoChessgameServer/database"
+    _ "GoChessgameServer/game"
 )
 
 func main() {
