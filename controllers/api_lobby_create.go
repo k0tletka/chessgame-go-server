@@ -28,7 +28,7 @@ func LobbyCreate(w http.ResponseWriter, r *http.Request) {
     }
 
     // Create new game and insert it
-    gameId := store.RegisterNewGameStore(req.GameTitle, contextUser, "")
+    gameId := store.RegisterNewGameStore(req.GameTitle, contextUser)
 
     // Response with game id
     resp := struct{
@@ -46,6 +46,6 @@ func LobbyCreate(w http.ResponseWriter, r *http.Request) {
     }
     w.Header().Add("Content-Type", "application/json")
 
-    // Log new user
+    // Log
     contrLogger.Printf("LobbyCreate: User %s created a new game with id %d\n", contextUser, gameId)
 }

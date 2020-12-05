@@ -6,10 +6,16 @@ import (
     "time"
     "reflect"
     "strconv"
+    "sync"
 
     u "GoChessgameServer/util"
     "GoChessgameServer/store"
+    "GoChessgameServer/game"
 )
+
+// This mutex allow to sync connect, so only the first player,
+// who sent request, will be connected to the game
+var connectSync = sync.Mutex{}
 
 // This function performs connection
 // to the existent game and start game session
@@ -36,6 +42,7 @@ func GameConnect(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    connectSync.Lock()
     // Check self connect and double connect
     if (*gameStore).PlayerOneLogin == contextUser {
         writeError("You can't connect to yourself")
@@ -45,8 +52,10 @@ func GameConnect(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Set second player
+    // Set second player and game started flag
     (*gameStore).PlayerTwoLogin = contextUser
+    (*gameStore).GameStarted = true
+    connectSync.Unlock()
 
     resplm := struct {
         Login string `json:"opponent"`
@@ -90,6 +99,9 @@ func GameConnect(w http.ResponseWriter, r *http.Request) {
 
             w.Header().Add("Content-Type", "application/json")
             contrLogger.Printf("GameConnect: User %s connected to a game %d\n", contextUser, req.GameID)
+
+            // Game process approved, start game controller in other thread
+            go game.ControlGame(gameStore)
         } else {
             writeError("Game aborted, other user tried to connect to the game")
             _ = store.RemoveGameStore(req.GameID)

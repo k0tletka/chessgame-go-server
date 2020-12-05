@@ -31,7 +31,12 @@ func GameAck(w http.ResponseWriter, r *http.Request) {
     // Get game store
     gameStore, err := store.GetGameStore(req.GameID)
     if err != nil {
-        writeError("Game with the specified id is not found")
+        return
+    }
+
+    // Check that user can ack on this game
+    if contextUser != (*gameStore).PlayerOneLogin && contextUser != (*gameStore).PlayerTwoLogin {
+        writeError("You can't acknowledge on this game")
         return
     }
 

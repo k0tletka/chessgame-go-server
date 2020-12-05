@@ -25,11 +25,14 @@ func init() {
     Router.HandleFunc("/api/lobby/create", controllers.LobbyCreate).Methods("POST")
     Router.HandleFunc("/api/game/connect", controllers.GameConnect).Methods("POST")
     Router.HandleFunc("/api/game/ack", controllers.GameAck).Methods("POST")
+    Router.HandleFunc("/api/game/sendturn", controllers.SendTurn).Methods("POST")
     Router.HandleFunc("/api/playerstat", controllers.UserStatistic).Methods("GET", "POST")
     Router.HandleFunc("/api/motd", controllers.GetMotd).Methods("GET")
 
     // Longpoll managers
     Router.HandleFunc("/api/game/wait", lm.WaitUser(store.WaitGameLM)).Methods("GET")
+    Router.HandleFunc("/api/game/waitturn", lm.WaitTurn(store.WaitTurnLM)).Methods("GET")
+    Router.HandleFunc("/api/game/endgame", lm.EndGame(store.EndGameLM)).Methods("GET")
 
     // Middleware for token checking
     Router.Use(controllers.TokenChecker)

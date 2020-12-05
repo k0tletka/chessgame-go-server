@@ -31,7 +31,7 @@ var gameStoresMutex = sync.Mutex{}
 
 // Longpolls
 var WaitGameLM *lp.LongpollManager
-var SendTurnLM *lp.LongpollManager
+var WaitTurnLM *lp.LongpollManager
 var EndGameLM *lp.LongpollManager
 
 // String variable for markdown motd storing
@@ -47,13 +47,26 @@ type JWTClaims struct {
     jwt.StandardClaims
 }
 
+// Type to input turns
+type GameTurn struct {
+    FigposX int
+    FigposY int
+    AltX int
+    AltY int
+    Surrender bool
+}
+
 // This type represents a game
 type GameStore struct {
     GameID int
     PlayerOneLogin string
     PlayerTwoLogin string
+    GameStarted bool
+    IsPlayerOneTurn bool
     GameTitle string
     AckChannel chan string
+    SendTurnRequest chan *GameTurn
+    SendTurnResponse chan string
 }
 
 func init() {
@@ -89,22 +102,36 @@ func init() {
     MotdString = string(readedMotd)
 
     // Initialize longpoll managers
-    WaitGameLM, err = lp.StartLongpoll(lp.Options{})
+    WaitGameLM, err = lp.StartLongpoll(lp.Options{
+        EventTimeToLiveSeconds: 3,
+        DeleteEventAfterFirstRetrieval: true,
+        MaxLongpollTimeoutSeconds: 3600,
+    })
     if err != nil {
         storeLogger.Fatalln(err)
     }
-    SendTurnLM, err = lp.StartLongpoll(lp.Options{})
+
+    WaitTurnLM, err = lp.StartLongpoll(lp.Options{
+        EventTimeToLiveSeconds: 3,
+        DeleteEventAfterFirstRetrieval: true,
+        MaxLongpollTimeoutSeconds: 600,
+    })
     if err != nil {
         storeLogger.Fatalln(err)
     }
-    EndGameLM, err = lp.StartLongpoll(lp.Options{})
+
+    EndGameLM, err = lp.StartLongpoll(lp.Options{
+        EventTimeToLiveSeconds: 3600 * 24,
+        DeleteEventAfterFirstRetrieval: false,
+        MaxLongpollTimeoutSeconds: 3600 * 24,
+    })
     if err != nil {
         storeLogger.Fatalln(err)
     }
 }
 
 // Functions to add, remove and getting game by id
-func RegisterNewGameStore(gametitle string, playerone string, playertwo string) int {
+func RegisterNewGameStore(gametitle string, player string) int {
 
     // Thread-safe operation
     gameStoresMutex.Lock()
@@ -112,10 +139,14 @@ func RegisterNewGameStore(gametitle string, playerone string, playertwo string) 
 
     GameStores = append(GameStores, GameStore{
         GameID: idGameCounter,
-        PlayerOneLogin: playerone,
-        PlayerTwoLogin: playertwo,
+        PlayerOneLogin: player,
+        PlayerTwoLogin: "",
+        GameStarted: false,
+        IsPlayerOneTurn: true,
         GameTitle: gametitle,
         AckChannel: make(chan string),
+        SendTurnRequest: make(chan *GameTurn, 1),
+        SendTurnResponse: make(chan string, 1),
     })
 
     gameStoresMutex.Unlock()
@@ -130,6 +161,9 @@ func RemoveGameStore(id int) error {
     for i, proc := range GameStores {
         if proc.GameID == id {
             close(GameStores[i].AckChannel)
+            close(GameStores[i].SendTurnRequest)
+            close(GameStores[i].SendTurnResponse)
+
             GameStores[i] = GameStores[len(GameStores) - 1]
             GameStores = GameStores[:len(GameStores) - 1]
 
@@ -144,9 +178,9 @@ func RemoveGameStore(id int) error {
 
 func GetGameStore(id int) (*GameStore, error) {
 
-    for _, proc := range GameStores {
+    for i, proc := range GameStores {
         if proc.GameID == id {
-            return &proc, nil
+            return &GameStores[i], nil
         }
     }
 

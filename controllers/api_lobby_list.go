@@ -23,11 +23,13 @@ func LobbyList(w http.ResponseWriter, r *http.Request) {
     resp := []respType{}
 
     for _, game := range store.GameStores {
-        resp = append(resp, respType{
-            GameID: game.GameID,
-            PlayerName: game.PlayerOneLogin,
-            GameTitle: game.GameTitle,
-        })
+        if !game.GameStarted {
+            resp = append(resp, respType{
+                GameID: game.GameID,
+                PlayerName: game.PlayerOneLogin,
+                GameTitle: game.GameTitle,
+            })
+        }
     }
 
     // Send response
@@ -39,6 +41,6 @@ func LobbyList(w http.ResponseWriter, r *http.Request) {
     }
     w.Header().Add("Content-Type", "application/json")
 
-    // Log new user
+    // Log
     contrLogger.Printf("LobbyList: User %s requested lobby list\n", contextUser)
 }

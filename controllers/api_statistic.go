@@ -144,6 +144,6 @@ func UserStatistic(w http.ResponseWriter, r *http.Request) {
     }
     w.Header().Add("Content-Type", "application/json")
 
-    // Log new user
+    // Log
     contrLogger.Printf("UserStatistic: User %s requested user statistic\n", contextUser)
 }
