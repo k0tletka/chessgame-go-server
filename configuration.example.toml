@@ -1,0 +1,11 @@
+[database]
+server = "localhost" # Server, where MSSQL database located
+dbname = "dbname" # Database, that will be used for data storing
+user = "dbuser" # User, that have full access to specified database
+pass = "password" # Password of this user
+connection_timeout = 30 # Timeout for database connection
+
+[application]
+listenaddr = "localhost" # Address, on where server listens
+listenport = "12000" # Port, on where server listens
+markdown_file = "motd.md" # File with the message of the day
