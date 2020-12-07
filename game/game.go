@@ -420,7 +420,7 @@ type Queen struct {
 func (q *Queen) CanFigurePass(altX int, altY int) bool {
 
     if q.isBlack {
-        return q.canFigurePassInner(-altX, altY)
+        return q.canFigurePassInner(-altX, -altY)
     } else {
         return q.canFigurePassInner(altX, altY)
     }
@@ -477,7 +477,7 @@ func (q *Queen) canFigurePassInner(altX int, altY int) bool {
                 countX := q.x + 1
                 countY := q.y + 1
 
-                for q.x + altX > countX && q.y + altX > countY {
+                for q.x + altX > countX && q.y + altY > countY {
                     if table[countX][countY] != nil {
                         return false
                     }
@@ -488,7 +488,7 @@ func (q *Queen) canFigurePassInner(altX int, altY int) bool {
                 countX := q.x + 1
                 countY := q.y - 1
 
-                for q.x + altX > countX && q.y + altX < countY {
+                for q.x + altX > countX && q.y + altY < countY {
                     if table[countX][countY] != nil {
                         return false
                     }
@@ -499,7 +499,7 @@ func (q *Queen) canFigurePassInner(altX int, altY int) bool {
                 countX := q.x - 1
                 countY := q.y + 1
 
-                for q.x + altX < countX && q.y + altX > countY {
+                for q.x + altX < countX && q.y + altY > countY {
                     if table[countX][countY] != nil {
                         return false
                     }
@@ -510,7 +510,7 @@ func (q *Queen) canFigurePassInner(altX int, altY int) bool {
                 countX := q.x - 1
                 countY := q.y - 1
 
-                for q.x + altX < countX && q.y + altX < countY {
+                for q.x + altX < countX && q.y + altY < countY {
                     if table[countX][countY] != nil {
                         return false
                     }
@@ -578,7 +578,7 @@ func (k *King) canFigurePassInner(altX int, altY int) bool {
         if table[k.x + altX][k.y + altY] != nil && table[k.x + altX][k.y + altY].IsFigureBlack() == k.isBlack {
             return false
         }
-        return true
+       return true
     }
 
     return false
