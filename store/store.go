@@ -1,7 +1,6 @@
 package store
 
 import (
-    "crypto/rand"
     "log"
     "os"
     "sync"
@@ -15,19 +14,8 @@ import (
     lp "github.com/jcuga/golongpoll"
 )
 
-// Store logger
-var storeLogger *log.Logger
-
-// This string contains a key, stat will be
-// used for jwt signing
-var JWTKey []byte
-
-var idGameCounter = 0
-var GameStores = []GameStore{}
-
-// Mutexs for thread-safe operations on
-// game processes
-var gameStoresMutex = sync.Mutex{}
+// Errors
+var GameNotFoundError = errors.New("Game with the specified id is not found")
 
 // Longpolls
 var WaitGameLM *lp.LongpollManager
@@ -37,13 +25,17 @@ var EndGameLM *lp.LongpollManager
 // String variable for markdown motd storing
 var MotdString string
 
-// Errors
-var GameNotFoundError = errors.New("Game with the specified id is not found")
+// Game stores
+var GameStores = []GameStore{}
+
+// Utility
+var storeLogger *log.Logger
+var idGameCounter = 0
+var gameStoresMutex = sync.Mutex{}
 
 // This type represent token claims with login string
 type JWTClaims struct {
     Login string
-    IsAdmin bool
     jwt.StandardClaims
 }
 
@@ -73,35 +65,33 @@ func init() {
     // Create store logger
     storeLogger = logger.AddNewLogger("Store", os.Stdout, log.LstdFlags | log.Lmsgprefix)
 
-    // Generate JWT key
-    JWTKey = make([]byte, 256, 256)
-    _, err := rand.Read(JWTKey)
-    if err != nil {
-        storeLogger.Fatalf("Error when generating key: %s", err.Error())
-    }
-
     // Load markdown file
     mdFile := c.Conf.App.MarkdownFile
+
     if mdFile == "" {
         storeLogger.Println("Markdown file is not set, skipping...")
         MotdString = "Motd file is not set on the server."
-        return
-    }
+    } else {
+        mdFd, err := os.OpenFile(mdFile, os.O_RDONLY | os.O_CREATE, 0755)
 
-    mdFd, err := os.OpenFile(mdFile, os.O_RDONLY | os.O_CREATE, 0755)
-    if err != nil {
-        storeLogger.Fatalln(err)
-    }
-    defer mdFd.Close()
+        if err != nil {
+            storeLogger.Fatalln(err)
+        }
+        defer mdFd.Close()
 
-    // Read markdown into string variable
-    readedMotd, err := ioutil.ReadAll(mdFd)
-    if err != nil {
-        storeLogger.Fatalln(err)
+        // Read markdown into string variable
+        readedMotd, err := ioutil.ReadAll(mdFd)
+
+        if err != nil {
+            storeLogger.Fatalln(err)
+        }
+
+        MotdString = string(readedMotd)
     }
-    MotdString = string(readedMotd)
 
     // Initialize longpoll managers
+    var err error
+
     WaitGameLM, err = lp.StartLongpoll(lp.Options{
         EventTimeToLiveSeconds: 3,
         DeleteEventAfterFirstRetrieval: true,

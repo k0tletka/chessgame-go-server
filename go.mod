@@ -6,6 +6,7 @@ require (
 	github.com/BurntSushi/toml v0.3.1
 	github.com/denisenkom/go-mssqldb v0.9.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/gijsbers/go-pcre v0.0.0-20161214203829-a84f3096ab3c
 	github.com/gorilla/mux v1.8.0
 	github.com/jcuga/golongpoll v1.1.0
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect

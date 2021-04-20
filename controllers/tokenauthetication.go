@@ -17,11 +17,7 @@ func TokenChecker(next http.Handler) http.Handler {
 
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-        writeError := func(message string) {
-            jsonResp := u.ErrorJson(message)
-            w.WriteHeader(http.StatusForbidden)
-            u.WriteResponse(w, jsonResp)
-        }
+        writeError := u.WriteErrorCreator(w)
 
         // Log requests
         contrLogger.Printf("TokenChecker: Request %s from %s\n", r.URL.Path, r.RemoteAddr)
@@ -70,7 +66,6 @@ func TokenChecker(next http.Handler) http.Handler {
         }
 
         ctx := context.WithValue(r.Context(), "login", claims.Login)
-        ctx = context.WithValue(ctx, "isadmin", claims.IsAdmin)
         r = r.WithContext(ctx)
         next.ServeHTTP(w, r)
     })

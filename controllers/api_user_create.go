@@ -3,14 +3,10 @@ package controllers
 import (
     "net/http"
     "encoding/json"
-    "crypto/rand"
-    "reflect"
 
     u "GoChessgameServer/util"
-    "GoChessgameServer/database"
     "GoChessgameServer/store"
 
-    "golang.org/x/crypto/sha3"
     jwt "github.com/dgrijalva/jwt-go"
 )
 
@@ -27,64 +23,31 @@ func CreateLogin(w http.ResponseWriter, r *http.Request) {
     }
     req := reqType{}
 
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || reflect.DeepEqual(req, reqType{}) {
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError("Invalid request")
         contrLogger.Printf("CreateLoggin: Error when parsing request from client: %s\n", err.Error())
         return
     }
 
     // Validate request
-    if req.Login != "" && req.Email != "" && req.Password != "" {
-        success := u.ValidateCredentials(req.Login, req.Email, req.Password)
-        if !success {
-            writeError("Passed values is not matched with requirements to values")
-            return
-        }
-    } else {
-        writeError("One of the email, login or password is not specified, aborting")
+    success := u.ValidateValues(
+        &u.VValue{Type: "Login", Value: req.Login},
+        &u.VValue{Type: "Password", Value: req.Password},
+        &u.VValue{Type: "Email", Value: req.Email},
+    )
+
+    if !success {
+        writeError("Login, password or email doesn't satisfy value requirements")
         return
     }
 
-    // Check is logins and emails are existing
-    results, err := database.QueryBlocking("SELECT Login, Email FROM dbo.Users WHERE Login = $1 OR Email = $2", req.Login, req.Email)
-    if err != nil {
-        writeError("Connection error")
-        w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("CreateLogin: Error when making query: %s\n", err.Error())
-        return
-    }
-    if len(*results) > 0 {
-        writeError("Account with specified login or email is existing already")
-        return
-    }
-
-    // Hash password
-    digest1 := sha3.Sum256([]byte(req.Password))
-
-    // Generate salt, append and digest hash again
-    salt := make([]byte, 256, 256)
-    _, err = rand.Read(salt)
-    if err != nil {
-        writeError("Server error")
-        w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("CreateLogin: Error when generating salt: %s\n", err.Error())
-        return
-    }
-    digest2 := sha3.Sum256(append(digest1[:], salt...))
-
-    // Insert new account into db table
-    _, err = database.QueryExecBlocking(`
-    INSERT INTO dbo.Users(Login, Email, PasswordHash, PasswordHashSalt)
-    VALUES ($1, $2, $3, $4)`, req.Login, req.Email, digest2[:], salt)
-    if err != nil {
-        writeError("Server error")
-        w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("CreateLogin: Error when executing query: %s\n", err.Error())
+    if !auth.RegisterUser(req.Login, req.Password, req.Email, r.RemoteAddr) {
+        writeError("Register failed: maybe, login is occupied by another account or internal error occured")
         return
     }
 
     // Create new token
-    claim := &store.JWTClaims{Login: req.Login, IsAdmin: false}
+    claim := &store.JWTClaims{Login: req.Login}
     token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), claim)
     tokenString, _ := token.SignedString(store.JWTKey)
 

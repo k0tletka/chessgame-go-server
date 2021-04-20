@@ -3,13 +3,11 @@ package controllers
 import (
     "net/http"
     "encoding/json"
-    "reflect"
 
     u "GoChessgameServer/util"
-    "GoChessgameServer/database"
     "GoChessgameServer/store"
+    "GoChessgameServer/auth"
 
-    "golang.org/x/crypto/sha3"
     jwt "github.com/dgrijalva/jwt-go"
 )
 
@@ -25,53 +23,31 @@ func LoginUsers(w http.ResponseWriter, r *http.Request) {
     }
     req := reqType{}
 
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || reflect.DeepEqual(req, reqType{}) {
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError("Invalid request")
         contrLogger.Printf("LoginUsers: Error when parsing request from client: %s\n", err.Error())
         return
     }
 
     // Validate request
-    if req.Login != "" && req.Password != "" {
-        success := u.ValidateCredentials(req.Login, "", req.Password)
-        if !success {
-            writeError("Passed values is not matched with requirements to values")
-            return
-        }
-    } else {
-        writeError("One of the login or password is not specified, aborting")
+    success := u.ValidateValues(
+        &u.VValue{Type: "Login", Value: req.Login},
+        &u.VValue{Type: "Password", Value: req.Password},
+    )
+
+    if !success {
+        writeError("Login or password doesn't satisfy value requirements")
         return
     }
 
-    // Find user in the database
-    results, err := database.QueryBlocking("SELECT TOP 1 * FROM dbo.Users WHERE Login = $1", req.Login)
-    if err != nil {
-        writeError("Connection error")
-        w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("LoginUsers: Error when making query: %s\n", err.Error())
-        return
-    }
-    if len(*results) == 0 {
-        writeError("Login or password is not valid, please try again")
-        return
-    }
-
-    // Calculating password hash and validating them
-    user := (*results)[0]
-    salt := user["PasswordHashSalt"].([]byte)
-    realdigest := user["PasswordHash"].([]byte)
-
-    digest1 := sha3.Sum256([]byte(req.Password))
-    digest2 := sha3.Sum256(append(digest1[:], salt...))
-
-    if string(digest2[:]) != string(realdigest) {
-        writeError("Login or password is not valid, please try again")
+    // Auth user
+    if !auth.AuthUser(req.Login, req.Password, r.RemoteAddr) {
+        writeError("Login or password incorrect, or user already logged in, please try again")
         return
     }
 
     // Password valid, generate jwt token
-    isAdmin := (*results)[0]["IsAdmin"].(bool)
-    claim := &store.JWTClaims{Login: req.Login, IsAdmin: isAdmin}
+    claim := &store.JWTClaims{Login: req.Login}
     token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), claim)
     tokenString, _ := token.SignedString(store.JWTKey)
 

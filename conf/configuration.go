@@ -5,8 +5,6 @@ import (
     "GoChessgameServer/logger"
     "log"
     "os"
-    "bytes"
-    "io"
 )
 
 type Configuration struct {
@@ -36,27 +34,14 @@ func init() {
 
     // Initialize configuration
     confLogger := logger.AddNewLogger("Configuration", os.Stdout, log.LstdFlags | log.Lmsgprefix)
+
     conffile := os.Getenv("CONFLOCATION")
     if conffile == "" {
         conffile = "configuration.toml"
     }
 
-    // Open configuration file
-    readStream, err := os.OpenFile(conffile, os.O_RDONLY | os.O_CREATE, 0755)
-    if err != nil {
-        confLogger.Fatalln(err)
-    }
-    defer readStream.Close()
-
-    // Read data
-    buffer := bytes.Buffer{}
-    _, err = io.Copy(&buffer, readStream)
-    if err != nil {
-        confLogger.Fatalln(err)
-    }
-
     // Decode configuration
-    if _, err = toml.Decode(buffer.String(), &Conf); err != nil {
+    if _, err := toml.DecodeFile(conffile, &Conf); err != nil {
         confLogger.Fatalln(err)
     }
 
