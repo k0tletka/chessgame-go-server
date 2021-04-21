@@ -12,8 +12,10 @@ import (
     _ "github.com/denisenkom/go-mssqldb"
 )
 
-// Database variable
-var db *sql.DB
+var (
+    // Database variable
+    db *sql.DB
+)
 
 func init() {
 

@@ -10,34 +10,29 @@ import (
     "GoChessgameServer/logger"
     c "GoChessgameServer/conf"
 
-    jwt "github.com/dgrijalva/jwt-go"
     lp "github.com/jcuga/golongpoll"
 )
 
-// Errors
-var GameNotFoundError = errors.New("Game with the specified id is not found")
+var (
+    // Errors
+    GameNotFoundError = errors.New("Game with the specified id is not found")
 
-// Longpolls
-var WaitGameLM *lp.LongpollManager
-var WaitTurnLM *lp.LongpollManager
-var EndGameLM *lp.LongpollManager
+    // Longpolls
+    WaitGameLM *lp.LongpollManager
+    WaitTurnLM *lp.LongpollManager
+    EndGameLM *lp.LongpollManager
 
-// String variable for markdown motd storing
-var MotdString string
+    // String variable for markdown motd storing
+    MotdString string
 
-// Game stores
-var GameStores = []GameStore{}
+    // Game stores
+    GameStores = []GameStore{}
 
-// Utility
-var storeLogger *log.Logger
-var idGameCounter = 0
-var gameStoresMutex = sync.Mutex{}
-
-// This type represent token claims with login string
-type JWTClaims struct {
-    Login string
-    jwt.StandardClaims
-}
+    // Utility
+    storeLogger *log.Logger
+    idGameCounter = 0
+    gameStoresMutex = sync.Mutex{}
+)
 
 // Type to input turns
 type GameTurn struct {

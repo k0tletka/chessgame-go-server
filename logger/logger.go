@@ -8,14 +8,17 @@ import (
     "io"
 )
 
-// Base logger, that available at start of program
-var BaseLogger *log.Logger
+var (
+    // Errors
+    NoLoggerError = errors.New("logger: No logger found by name")
 
-// Other loggers, that adds and deletes by other modules
-var loggers []*log.Logger
+    // Base logger, that available at start of program
+    BaseLogger *log.Logger
 
-// Errors
-var NoLoggerError = errors.New("logger: No logger found by name")
+    // Other loggers, that adds and deletes by other modules
+    loggers []*log.Logger
+)
+
 
 func init() {
     // Initialize base logger

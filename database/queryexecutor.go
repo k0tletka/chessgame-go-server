@@ -8,15 +8,16 @@ import (
 
     _ "github.com/denisenkom/go-mssqldb"
 )
+var (
+    // Channels that used to be a connector
+    // between queries and query executor subroutines
+    poolquery = make(chan *queryResult, 50)
+    poolexecquery = make(chan *queryExecResult, 50)
 
-// Channels that used to be a connector
-// between queries and query executor subroutines
-var poolquery = make(chan *queryResult, 50)
-var poolexecquery = make(chan *queryExecResult, 50)
-
-// Mutex that will controll query execution in
-// different subroutines
-var executorMutex = sync.Mutex{}
+    // Mutex that will controll query execution in
+    // different subroutines
+    executorMutex = sync.Mutex{}
+)
 
 // Types that represents object, that
 // stores information about query for waiting results
@@ -65,9 +66,6 @@ type QueryExecResult interface {
 }
 
 func initQueryExecutor() {
-    //dbLogger, err := logger.GetLogger("Database")
-    //if err != nil { logger.BaseLogger.Fatalln(err) }
-
     // Query executor subroutine start
     go func() {
         for queryRes := range poolquery {
@@ -78,9 +76,6 @@ func initQueryExecutor() {
 
             queryRes.result = rows
             queryRes.resError = err
-
-            // Log executing query (just for debugging)
-            //dbLogger.Printf("Executed query: %s\n", queryRes.query)
 
             // Remove added value in waitor
             queryRes.waitor.Done()
@@ -97,9 +92,6 @@ func initQueryExecutor() {
 
             queryExecRes.result = &res
             queryExecRes.resError = err
-
-            // Log executing query (just for debugging)
-            //dbLogger.Printf("Executed query: %s\n", queryExecRes.query)
 
             // Remove added value in waitor
             queryExecRes.waitor.Done()

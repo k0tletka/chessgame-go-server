@@ -52,6 +52,10 @@ func (s *SessionStoreType) TerminateSession(login string) error {
 }
 
 // Get session
-func (s *SessionStoreType) GetSession(login string) *SessionInformation {
-    return s.sessions[login]
+func (s *SessionStoreType) GetSession(login string) (SessionInformation, error) {
+    if s.sessions[login] == nil {
+        return SessionInformation{}, NoSuchSession
+    }
+
+    return *(s.sessions[login]), nil
 }

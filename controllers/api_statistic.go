@@ -4,7 +4,6 @@ import (
     "net/http"
     "encoding/json"
     "io/ioutil"
-    "reflect"
 
     u "GoChessgameServer/util"
     "GoChessgameServer/database"
@@ -52,7 +51,8 @@ func UserStatistic(w http.ResponseWriter, r *http.Request) {
         req := reqType{}
 
         err = json.Unmarshal(jsonString, &req)
-        if err != nil || reflect.DeepEqual(req, reqType{}) {
+
+        if err != nil {
             // Its not self request, try to parse next request type
             passed = false
         }
@@ -80,14 +80,17 @@ func UserStatistic(w http.ResponseWriter, r *http.Request) {
             req := reqType{}
 
             err = json.Unmarshal(jsonString, &req)
-            if err != nil || reflect.DeepEqual(req, reqType{}) {
+
+            if err != nil {
                 // Its also not user request, invalid JSON request
                 writeError("Invalid/Mailformed JSON request")
                 return
             }
 
             // User validation
-            if !u.ValidateCredentials(req.Login, "", "") {
+            success := u.ValidateValues(&u.VValue{Type: "Login", Value: req.Login})
+
+            if !success {
                 writeError("Passed login is not corresponds to login requirements")
                 return
             }

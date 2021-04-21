@@ -7,11 +7,13 @@ import (
     "GoChessgameServer/logger"
 )
 
+var (
+    // Errors
+    NoColumnsError = errors.New("No columns in result")
+)
+
 // Type of rows results
 type RowsResult []map[string]interface{}
-
-// Errors
-var NoColumnsError = errors.New("No columns in result")
 
 // This function is used to parse results from
 // *sql.Rows to []interface{}

@@ -20,7 +20,7 @@ func init() {
 }
 
 // This function performs login and password validating in the system
-func AuthUser(login, password, remoteString string) bool {
+func AuthUser(login, password string) bool {
     // Check users in the database
     results, err := database.QueryBlocking("SELECT TOP 1 * FROM dbo.Users WHERE Login = $1", login)
 
@@ -42,12 +42,12 @@ func AuthUser(login, password, remoteString string) bool {
     authed := checkPasswordValid(password, hash, salt)
 
     if !authed {
+        authLogger.Printf("User %s has failed autheticating in system\n", login)
         return false
     }
 
     // Register session for logged user
     sinfo := &SessionInformation{
-        EndpointString: remoteString,
         IsAdmin: isAdmin,
     }
 
@@ -56,7 +56,7 @@ func AuthUser(login, password, remoteString string) bool {
 }
 
 // This function performs registering new users (session for new users also creates)
-func RegisterUser(login, password, email, remoteString string) bool {
+func RegisterUser(login, password, email string) bool {
     // Check if user axe exists already
     results, err := database.QueryBlocking("SELECT Login, Email FROM dbo.Users WHERE Login = $1", login)
 
@@ -84,12 +84,50 @@ func RegisterUser(login, password, email, remoteString string) bool {
 
     // Register session for logged user
     sinfo := &SessionInformation{
-        EndpointString: remoteString,
         IsAdmin: false,
     }
 
     err = SessionStore.CreateNewSession(login, sinfo)
     return err == nil
+}
+
+// This function allows to change user password
+func ChangeUserPassword(login, op, np string) bool {
+    // Make request to get
+    results, err := database.QueryBlocking(`SELECT PasswordHash, PasswordHashSalt FROM dbo.Users WHERE Login = $1`, login)
+
+    if err != nil {
+        authLogger.Printf("Error when executing query: %s\n", err.Error())
+        return false
+    }
+
+    if len(*results) == 0 {
+        return false
+    }
+
+    // Check old password valid
+    opHash := (*results)[0]["PasswordHash"].([]byte)
+    opHashSalt := (*results)[0]["PasswordHashSalt"].([]byte)
+
+    if !checkPasswordValid(op, opHash, opHashSalt) {
+        authLogger.Printf("User %s provided invalid password while trying to change it\n", login)
+        return false
+    }
+
+    // Generate and update new password
+    hash, salt := generateHashAndSalt(np)
+
+    _, err = database.QueryExecBlocking(`
+    UPDATE dbo.Users SET PasswordHash = $1, PasswordHashSalt = $2
+    FROM dbo.Users
+    WHERE Login = $3`, hash, salt, login)
+
+    if err != nil {
+        authLogger.Printf("Error when executing query: %s\n", err.Error())
+        return false
+    }
+
+    return true
 }
 
 // Utility functions

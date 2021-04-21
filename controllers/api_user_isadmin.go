@@ -5,6 +5,7 @@ import (
     "encoding/json"
 
     u "GoChessgameServer/util"
+    "GoChessgameServer/auth"
 )
 
 // This function returns either true or false
@@ -13,15 +14,15 @@ func IsAdmin(w http.ResponseWriter, r *http.Request) {
 
     writeError := u.WriteErrorCreator(w)
 
-    // Get current user
+    // Get current user and his session
     user := r.Context().Value("login").(string)
-    isAdmin := r.Context().Value("isadmin").(bool)
+    session, _ := auth.SessionStore.GetSession(user)
 
     // Return isadmin to client
     resp := struct{
         IsAdmin bool `json:"isadmin"`
     }{
-        IsAdmin: isAdmin,
+        IsAdmin: session.IsAdmin,
     }
 
     if err := json.NewEncoder(w).Encode(resp); err != nil {

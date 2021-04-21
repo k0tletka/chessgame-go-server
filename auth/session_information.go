@@ -10,9 +10,6 @@ type SessionInformation struct {
     // more easily administrate current sessions
     JWTKey []byte
 
-    // Address and port of remote client
-    EndpointString string
-
     // Administrator status
     IsAdmin bool
 }

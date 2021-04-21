@@ -6,9 +6,7 @@ import (
     "context"
 
     u "GoChessgameServer/util"
-    "GoChessgameServer/store"
-
-    jwt "github.com/dgrijalva/jwt-go"
+    "GoChessgameServer/auth"
 )
 
 // This function return a new handler,
@@ -18,10 +16,6 @@ func TokenChecker(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
         writeError := u.WriteErrorCreator(w)
-
-        // Log requests
-        contrLogger.Printf("TokenChecker: Request %s from %s\n", r.URL.Path, r.RemoteAddr)
-
         notAuthUris := []string {"/api/user/login", "/api/user/create"}
         urlPath := r.URL.Path
 
@@ -49,23 +43,14 @@ func TokenChecker(next http.Handler) http.Handler {
 
         // Get token and check signature
         token := tokenSpl[1]
-        claims := &store.JWTClaims{}
+        claim, verified := auth.VerifyToken(token)
 
-        tokenRes, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
-            return store.JWTKey, nil
-        })
-
-        if err != nil {
-            writeError("Error when checking token signing")
+        if !verified {
+            writeError("Unautheticated request or maybe session has been terminated")
             return
         }
 
-        if !tokenRes.Valid {
-            writeError("Token is not valid")
-            return
-        }
-
-        ctx := context.WithValue(r.Context(), "login", claims.Login)
+        ctx := context.WithValue(r.Context(), "login", claim.Login)
         r = r.WithContext(ctx)
         next.ServeHTTP(w, r)
     })

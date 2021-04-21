@@ -5,10 +5,7 @@ import (
     "encoding/json"
 
     u "GoChessgameServer/util"
-    "GoChessgameServer/store"
     "GoChessgameServer/auth"
-
-    jwt "github.com/dgrijalva/jwt-go"
 )
 
 // This controller perform user login
@@ -41,23 +38,26 @@ func LoginUsers(w http.ResponseWriter, r *http.Request) {
     }
 
     // Auth user
-    if !auth.AuthUser(req.Login, req.Password, r.RemoteAddr) {
+    if !auth.AuthUser(req.Login, req.Password) {
         writeError("Login or password incorrect, or user already logged in, please try again")
         return
     }
 
     // Password valid, generate jwt token
-    claim := &store.JWTClaims{Login: req.Login}
-    token := jwt.NewWithClaims(jwt.GetSigningMethod("HS256"), claim)
-    tokenString, _ := token.SignedString(store.JWTKey)
+    claim := &auth.JWTUserClaim{Login: req.Login}
+    token, err := auth.GenerateJWTToken(claim)
 
+    if err != nil {
+        writeError("Internal server error")
+        return
+    }
     // Write response
     resp := struct{
         Login string `json:"login"`
         JWTToken string `json:"token"`
     }{
         Login: req.Login,
-        JWTToken: tokenString,
+        JWTToken: token,
     }
 
     if err = json.NewEncoder(w).Encode(resp); err != nil {

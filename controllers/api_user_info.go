@@ -20,12 +20,14 @@ func UserInfo(w http.ResponseWriter, r *http.Request) {
     SELECT Email, IsAdmin
     FROM dbo.Users
     WHERE Login = $1`, user)
+
     if err != nil {
         writeError("Connection error")
         w.WriteHeader(http.StatusInternalServerError)
         contrLogger.Printf("UserInfo: Error when executing query: %s\n", err.Error())
         return
     }
+
     if len(*results) == 0 {
         writeError("Oops, it seems that you account has been deleted. Please, restart you application")
         return
