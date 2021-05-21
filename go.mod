@@ -10,5 +10,8 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/jcuga/golongpoll v1.1.0
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d // indirect
-	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
+	gorm.io/driver/sqlite v1.1.4
+	gorm.io/driver/sqlserver v1.0.7
+	gorm.io/gorm v1.21.10
 )

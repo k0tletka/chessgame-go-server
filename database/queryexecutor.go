@@ -4,8 +4,6 @@ import (
     "sync"
     "database/sql"
 
-    //"GoChessgameServer/logger"
-
     _ "github.com/denisenkom/go-mssqldb"
 )
 var (

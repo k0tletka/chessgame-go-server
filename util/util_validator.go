@@ -12,35 +12,38 @@ var (
 
     // Map of validation functions
     validatorFuncs = map[string]func(interface{}) bool{
-        "Login":    func(value interface{}) bool {
-            login, ok := value.(string)
+        "Login":
+            func(value interface{}) bool {
+                login, ok := value.(string)
 
-            if !ok {
-                return false
-            }
+                if !ok {
+                    return false
+                }
 
-            matched, err := regexp.MatchString(`^[a-z0-9]{6,100}$`, login)
-            return err == nil && matched
-        },
-        "Password": func(value interface{}) bool {
-            password, ok := value.(string)
+                matched, err := regexp.MatchString(`^[a-z0-9]{6,100}$`, login)
+                return err == nil && matched
+            },
+        "Password":
+            func(value interface{}) bool {
+                password, ok := value.(string)
 
-            if !ok {
-                return false
-            }
+                if !ok {
+                    return false
+                }
 
-            return passwordPattern.MatcherString(password, pcre.ANCHORED).Matches()
-        },
-        "Email":    func(value interface{}) bool {
-            email, ok := value.(string)
+                return passwordPattern.MatcherString(password, pcre.ANCHORED).Matches()
+            },
+        "Email":
+            func(value interface{}) bool {
+                email, ok := value.(string)
 
-            if !ok {
-                return false
-            }
+                if !ok {
+                    return false
+                }
 
-            matched, err := regexp.MatchString(`^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$`, email)
-            return err == nil && matched
-        },
+                matched, err := regexp.MatchString(`^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$`, email)
+                return err == nil && matched
+            },
     }
 )
 
