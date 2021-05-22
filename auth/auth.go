@@ -9,6 +9,7 @@ import (
     "GoChessgameServer/database"
 
     "golang.org/x/crypto/sha3"
+    "gorm.io/gorm"
 )
 
 // Logger for module
@@ -22,24 +23,21 @@ func init() {
 // This function performs login and password validating in the system
 func AuthUser(login, password string) bool {
     // Check users in the database
-    results, err := database.QueryBlocking("SELECT TOP 1 * FROM dbo.Users WHERE Login = $1", login)
+    var user database.User
 
-    if err != nil {
-        authLogger.Printf("Error when making query: %s\n", err.Error())
+    if result := database.DB.Find(&user, login); result.Error != nil {
+        if result.Error != gorm.ErrRecordNotFound {
+            authLogger.Printf("Error when making query: %s\n", result.Error.Error())
+        }
+
         return false
     }
 
-    if len(*results) == 0 {
-        return false
-    }
-
-    // User info
-    user := (*results)[0]
-    salt := user["PasswordHashSalt"].([]byte)
-    hash := user["PasswordHash"].([]byte)
-    isAdmin := user["IsAdmin"].(bool)
-
-    authed := checkPasswordValid(password, hash, salt)
+    authed := checkPasswordValid(
+        password,
+        user.PasswordHash,
+        user.PasswordHashSalt,
+    )
 
     if !authed {
         authLogger.Printf("User %s has failed autheticating in system\n", login)
@@ -48,24 +46,24 @@ func AuthUser(login, password string) bool {
 
     // Register session for logged user
     sinfo := &SessionInformation{
-        IsAdmin: isAdmin,
+        IsAdmin: user.IsAdmin,
     }
 
-    err = SessionStore.CreateNewSession(login, sinfo)
+    err := SessionStore.CreateNewSession(login, sinfo)
     return err == nil
 }
 
 // This function performs registering new users (session for new users also creates)
 func RegisterUser(login, password, email string) bool {
     // Check if user axe exists already
-    results, err := database.QueryBlocking("SELECT Login, Email FROM dbo.Users WHERE Login = $1", login)
+    result := database.DB.Find(&database.User{}, login)
 
-    if err != nil {
-        authLogger.Printf("Error when making query: %s\n", err.Error())
+    if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
+        authLogger.Printf("Error when making query: %s\n", result.Error.Error())
         return false
     }
 
-    if len(*results) > 0 {
+    if result.Error == nil {
         return false
     }
 
@@ -73,12 +71,15 @@ func RegisterUser(login, password, email string) bool {
     hash, salt := generateHashAndSalt(password)
 
     // Insert new account into db table
-    _, err = database.QueryExecBlocking(`
-    INSERT INTO dbo.Users(Login, Email, PasswordHash, PasswordHashSalt)
-    VALUES ($1, $2, $3, $4)`, login, email, hash, salt)
+    result = database.DB.Create(&database.User{
+        Login: login,
+        Email: email,
+        PasswordHash: hash,
+        PasswordHashSalt: salt,
+    })
 
-    if err != nil {
-        authLogger.Printf("Error when executing query: %s\n", err.Error())
+    if result.Error != nil {
+        authLogger.Printf("Error when executing query: %s\n", result.Error.Error())
         return false
     }
 
@@ -87,43 +88,34 @@ func RegisterUser(login, password, email string) bool {
         IsAdmin: false,
     }
 
-    err = SessionStore.CreateNewSession(login, sinfo)
+    err := SessionStore.CreateNewSession(login, sinfo)
     return err == nil
 }
 
 // This function allows to change user password
 func ChangeUserPassword(login, op, np string) bool {
     // Make request to get
-    results, err := database.QueryBlocking(`SELECT PasswordHash, PasswordHashSalt FROM dbo.Users WHERE Login = $1`, login)
+    var user database.User
 
-    if err != nil {
-        authLogger.Printf("Error when executing query: %s\n", err.Error())
-        return false
-    }
+    if result := database.DB.Find(&user, login); result.Error != nil {
+        if result.Error != gorm.ErrRecordNotFound {
+            authLogger.Printf("Error when making query: %s\n", result.Error.Error())
+        }
 
-    if len(*results) == 0 {
         return false
     }
 
     // Check old password valid
-    opHash := (*results)[0]["PasswordHash"].([]byte)
-    opHashSalt := (*results)[0]["PasswordHashSalt"].([]byte)
-
-    if !checkPasswordValid(op, opHash, opHashSalt) {
+    if !checkPasswordValid(op, user.PasswordHash, user.PasswordHashSalt) {
         authLogger.Printf("User %s provided invalid password while trying to change it\n", login)
         return false
     }
 
     // Generate and update new password
-    hash, salt := generateHashAndSalt(np)
+    user.PasswordHash, user.PasswordHashSalt = generateHashAndSalt(np)
 
-    _, err = database.QueryExecBlocking(`
-    UPDATE dbo.Users SET PasswordHash = $1, PasswordHashSalt = $2
-    FROM dbo.Users
-    WHERE Login = $3`, hash, salt, login)
-
-    if err != nil {
-        authLogger.Printf("Error when executing query: %s\n", err.Error())
+    if result := database.DB.Save(&user); result.Error != nil {
+        authLogger.Printf("Error when executing query: %s\n", result.Error.Error())
         return false
     }
 

@@ -3,7 +3,6 @@ package controllers
 import (
     "net/http"
     "encoding/json"
-    "reflect"
 
     u "GoChessgameServer/util"
     "GoChessgameServer/store"
@@ -21,9 +20,19 @@ func LobbyCreate(w http.ResponseWriter, r *http.Request) {
     }
     req := reqType{}
 
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil || reflect.DeepEqual(req, reqType{}) {
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError("Invalid request")
         contrLogger.Printf("LobbyCreate: Error when parsing request from client: %s\n", err.Error())
+        return
+    }
+
+    // Check values
+    success := u.ValidateValues(
+        &u.VValue{Type: "NotDefaultValue", Value: req.GameTitle},
+    )
+
+    if !success {
+        writeError("Empty title name was passed, aborting to create new game")
         return
     }
 

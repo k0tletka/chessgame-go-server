@@ -41,6 +41,13 @@ func ControlGame(gameStore *store.GameStore) {
         cTable: &table,
     }
 
+    // Create instance of game result for database
+    databaseResult := database.GamesHistory{
+        GameStartTimestamp: time.Now(),
+        PlayerOneLoginKey: gameStore.PlayerOneLogin,
+        PlayerTwoLoginKey: gameStore.PlayerTwoLogin,
+    }
+
     // Fill table with figures
     fillTable(gameSession)
 
@@ -60,8 +67,7 @@ func ControlGame(gameStore *store.GameStore) {
             _ = store.RemoveGameStore(gameStore.GameID)
 
             // Execute database query
-            _ = database.QueryExecNonBlocking(queryResString, gameStarted, time.Now(),
-                true, "", gameStore.PlayerOneLogin, gameStore.PlayerTwoLogin)
+            saveResultToDatabase(&databaseResult, true, "", gameStarted)
             return
         case turn := <-gameStore.SendTurnRequest:
             // Handle turn
@@ -82,8 +88,7 @@ func ControlGame(gameStore *store.GameStore) {
                 _ = store.RemoveGameStore(gameStore.GameID)
 
                 // Execute database query
-                _ = database.QueryExecNonBlocking(queryResString, gameStarted, time.Now(),
-                    false, res.WinnerLogin, gameStore.PlayerOneLogin, gameStore.PlayerTwoLogin)
+                saveResultToDatabase(&databaseResult, false, res.WinnerLogin, gameStarted)
                 return
             }
 
@@ -123,8 +128,7 @@ func ControlGame(gameStore *store.GameStore) {
                 _ = store.RemoveGameStore(gameStore.GameID)
 
                 // Write results to database
-                _ = database.QueryExecNonBlocking(queryResString, gameStarted, time.Now(),
-                    false, res.WinnerLogin, gameStore.PlayerOneLogin, gameStore.PlayerTwoLogin)
+                saveResultToDatabase(&databaseResult, false, res.WinnerLogin, gameStarted)
                 return
             }
 
@@ -142,8 +146,7 @@ func ControlGame(gameStore *store.GameStore) {
                 _ = store.RemoveGameStore(gameStore.GameID)
 
                 // Write results to database
-                _ = database.QueryExecNonBlocking(queryResString, gameStarted, time.Now(),
-                    false, res.WinnerLogin, gameStore.PlayerOneLogin, gameStore.PlayerTwoLogin)
+                saveResultToDatabase(&databaseResult, false, res.WinnerLogin, gameStarted)
                 return
             }
 
@@ -167,8 +170,7 @@ func ControlGame(gameStore *store.GameStore) {
                 _ = store.RemoveGameStore(gameStore.GameID)
 
                 // Write results to database
-                _ = database.QueryExecNonBlocking(queryResString, gameStarted, time.Now(),
-                    false, res.WinnerLogin, gameStore.PlayerOneLogin, gameStore.PlayerTwoLogin)
+                saveResultToDatabase(&databaseResult, false, res.WinnerLogin, gameStarted)
                 return
             case <-gameStore.AckChannel:
                 turnTimer = time.NewTimer(time.Minute * 5)
@@ -326,4 +328,14 @@ func checkWhiteWin(session GameSession) bool {
 func notifyPlayerWait(gameID int, resp *notifyWaitGameData) {
     jsonBytes, _ := json.Marshal(&resp)
     store.WaitTurnLM.Publish(strconv.Itoa(gameID), string(jsonBytes))
+}
+
+// Function to save game data to database
+func saveResultToDatabase(resultObject *database.GamesHistory, isDraw bool, winnerLogin string, timeEnded time.Time) {
+    resultObject.IsDraw = isDraw
+    resultObject.WinnerLoginKey = winnerLogin
+    resultObject.GameEndTimestamp = timeEnded
+
+    // Ignore errors
+    database.DB.Save(resultObject)
 }

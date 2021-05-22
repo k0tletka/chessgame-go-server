@@ -30,7 +30,7 @@ func init() {
     dbLogger = logger.AddNewLogger("Database", os.Stdout, log.LstdFlags | log.Lmsgprefix)
 
     // Check mandatory credentials and connect to database
-    if !c.DecodeMetadata.IsDefined("database.driver") {
+    if !c.DecodeMetadata.IsDefined("database", "driver") {
         dbLogger.Fatalln("Database driver is not defined in config file, aborting...")
     }
 
@@ -45,57 +45,16 @@ func init() {
     var err error
     DB, err = gorm.Open(dbDialector, &gorm.Config{})
 
+    if err != nil {
+        dbLogger.Fatalln(err)
+    }
+
     dbLogger.Println("Database initialized")
 
-    // Connect to the database with
-    // Init query executor - go subroutine, that reads queries from channel and executes
-    // they synchronically
-    //initQueryExecutor()
+    err = DB.AutoMigrate(&User{}, &GamesHistory{})
 
-    // Execute schema creator, that database schema will be created
-    // if some elements a absent
-    CreateSchemaIfNotExists()
-}
-
-// This function creates mandatory schema
-func CreateSchemaIfNotExists() {
-
-    // Execute schema query
-    /*_, err = QueryExecBlocking(`
-    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Users')
-    BEGIN
-        CREATE TABLE dbo.Users (
-            Login VARCHAR(100) PRIMARY KEY,
-            Email VARCHAR(100) NOT NULL,
-            IsAdmin BIT NOT NULL DEFAULT 0,
-            PasswordHash VARBINARY(1000) NOT NULL,
-            PasswordHashSalt VARBINARY(1000) NOT NULL,
-        )
-    END
-    IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'GamesHistory')
-    BEGIN
-        CREATE TABLE dbo.GamesHistory (
-            ID INT PRIMARY KEY IDENTITY(1,1),
-            GameStartTimestamp DATETIME NOT NULL,
-            GameEndTimestamp DATETIME NOT NULL,
-            IsDraw BIT NOT NULL,
-            WinnerLogin VARCHAR(100) FOREIGN KEY REFERENCES dbo.Users(Login),
-            PlayerOneLogin VARCHAR(100) NOT NULL FOREIGN KEY REFERENCES dbo.Users(Login),
-            PlayerTwoLogin VARCHAR(100) NOT NULL FOREIGN KEY REFERENCES dbo.Users(Login)
-        )
-    END
-    `)
     if err != nil {
-        dbLogger.Fatalf("Error when executing schema: %s\n", err.Error())
-    }
-    */
-
-    if !DB.Migrator().HasTable(&User{}) {
-        DB.Migrator().CreateTable(&User{})
-    }
-
-    if !DB.Migrator().HasTable(&GamesHistory{}) {
-        DB.Migrator().CreateTable(&GamesHistory{})
+        dbLogger.Fatalln("Error when creating schema: %s\n", err.Error())
     }
 
     dbLogger.Println("Database schema creator executed successfully")
@@ -111,7 +70,7 @@ func checkMandatoryOptions(driverName string) bool {
             "user",
             "pass",
         },
-        "sqlite3": []string{
+        "sqlite": []string{
             "sqlite_dbpath",
         },
     }
@@ -119,7 +78,7 @@ func checkMandatoryOptions(driverName string) bool {
     // Check mandatory options defined in document
     if options, ok := databaseMandatoryOptions[driverName]; ok {
         for _, v := range options {
-            if !c.DecodeMetadata.IsDefined("database." + v) {
+            if !c.DecodeMetadata.IsDefined("database", v) {
                 return false
             }
         }
@@ -139,11 +98,11 @@ func getAppropriateDialector(driverName string) gorm.Dialector {
         var databasePort string
         var instanceName string
 
-        if c.DecodeMetadata.IsDefined("database.dbport") {
+        if c.DecodeMetadata.IsDefined("database", "dbport") {
             databasePort = ":" + strconv.FormatUint(uint64(c.Conf.DB.DatabasePort), 10)
         }
 
-        if c.DecodeMetadata.IsDefined("database.instance") {
+        if c.DecodeMetadata.IsDefined("database", "instance") {
             instanceName = "/" + c.Conf.DB.InstanceName
         }
 

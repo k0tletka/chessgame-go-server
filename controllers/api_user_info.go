@@ -6,6 +6,8 @@ import (
 
     u "GoChessgameServer/util"
     "GoChessgameServer/database"
+
+    "gorm.io/gorm"
 )
 
 // This function returns information about
@@ -13,28 +15,22 @@ import (
 func UserInfo(w http.ResponseWriter, r *http.Request) {
 
     writeError := u.WriteErrorCreator(w)
-    user := r.Context().Value("login").(string)
+    login := r.Context().Value("login").(string)
 
     // Make database query
-    results, err := database.QueryBlocking(`
-    SELECT Email, IsAdmin
-    FROM dbo.Users
-    WHERE Login = $1`, user)
+    var user database.User
 
-    if err != nil {
-        writeError("Connection error")
-        w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("UserInfo: Error when executing query: %s\n", err.Error())
+    if err := database.DB.Find(&user, login).Error; err != nil {
+        if err != gorm.ErrRecordNotFound {
+            writeError("Connection error")
+            w.WriteHeader(http.StatusInternalServerError)
+            contrLogger.Printf("UserInfo: Error when executing query: %s\n", err.Error())
+        } else {
+            writeError("Oops, it seems that you account has been deleted. Please, restart you application")
+        }
+
         return
     }
-
-    if len(*results) == 0 {
-        writeError("Oops, it seems that you account has been deleted. Please, restart you application")
-        return
-    }
-
-    email := (*results)[0]["Email"].(string)
-    isAdmin := (*results)[0]["IsAdmin"].(bool)
 
     // Send response
     resp := struct{
@@ -42,12 +38,12 @@ func UserInfo(w http.ResponseWriter, r *http.Request) {
         Email string `json:"mail"`
         IsAdmin bool `json:"isadmin"`
     }{
-        Login: user,
-        Email: email,
-        IsAdmin: isAdmin,
+        Login: user.Login,
+        Email: user.Email,
+        IsAdmin: user.IsAdmin,
     }
 
-    if err = json.NewEncoder(w).Encode(resp); err != nil {
+    if err := json.NewEncoder(w).Encode(resp); err != nil {
         writeError("Server error")
         w.WriteHeader(http.StatusInternalServerError)
         contrLogger.Printf("UserInfo: Error when sending response: %s\n", err.Error())

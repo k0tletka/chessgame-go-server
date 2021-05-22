@@ -19,24 +19,22 @@ func main() {
     mainLogger := logger.AddNewLogger("Application", os.Stdout, log.LstdFlags | log.Lmsgprefix)
 
     // Check configuration listenport and listenaddr, set default if parameter omited
-    netServerParams := map[string]string{
-        "listenaddr": "0.0.0.0",
-        "listenport": "80",
+    var listenaddr string = "0.0.0.0"
+    var listenport uint16 = 80
+
+    if c.DecodeMetadata.IsDefined("application", "listenaddr") {
+        listenaddr = c.Conf.App.ListenAddr
     }
 
-    if c.DecodeMetadata.IsDefined("listenaddr") {
-        netServerParams["listenaddr"] = c.Conf.App.ListenAddr
-    }
-
-    if c.DecodeMetadata.IsDefined("listenport") {
-        netServerParams["listenport"] = c.Conf.App.ListenPort
+    if c.DecodeMetadata.IsDefined("application", "listenport") {
+        listenport = c.Conf.App.ListenPort
     }
 
     // Set router handler and start REST API Server
     http.Handle("/", r.Router)
     mainLogger.Fatalln(http.ListenAndServe(fmt.Sprintf(
-        "%s:%s",
-        netServerParams["listenaddr"],
-        netServerParams["listenport"],
+        "%s:%d",
+        listenaddr,
+        listenport,
     ), nil))
 }

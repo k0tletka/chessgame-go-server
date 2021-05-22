@@ -2,6 +2,7 @@ package util
 
 import (
     "regexp"
+    "reflect"
 
     pcre "github.com/gijsbers/go-pcre"
 )
@@ -43,6 +44,10 @@ var (
 
                 matched, err := regexp.MatchString(`^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+$`, email)
                 return err == nil && matched
+            },
+        "NotDefaultValue":
+            func(value interface{}) bool {
+                return reflect.ValueOf(value).IsZero()
             },
     }
 )

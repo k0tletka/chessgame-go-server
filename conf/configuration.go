@@ -8,7 +8,7 @@ import (
 )
 
 type Configuration struct {
-    DB Database `toml:"database"`
+    DB Database     `toml:"database"`
     App Application `toml:"application"`
 }
 
@@ -26,7 +26,7 @@ type Database struct {
 
 type Application struct {
     ListenAddr          string  `toml:"listenaddr"`
-    ListenPort          uint16    `toml:"listenport"`
+    ListenPort          uint16  `toml:"listenport"`
     MarkdownFile        string  `toml:"markdown_file"`
 }
 
