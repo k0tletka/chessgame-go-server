@@ -1,4 +1,4 @@
-package controllers
+package clientapi
 
 import (
     "net/http"
@@ -24,7 +24,7 @@ func UserInfo(w http.ResponseWriter, r *http.Request) {
         if err != gorm.ErrRecordNotFound {
             writeError("Connection error")
             w.WriteHeader(http.StatusInternalServerError)
-            contrLogger.Printf("UserInfo: Error when executing query: %s\n", err.Error())
+            clientApiLogger.Printf("UserInfo: Error when executing query: %s\n", err.Error())
         } else {
             writeError("Oops, it seems that you account has been deleted. Please, restart you application")
         }
@@ -46,11 +46,11 @@ func UserInfo(w http.ResponseWriter, r *http.Request) {
     if err := json.NewEncoder(w).Encode(resp); err != nil {
         writeError("Server error")
         w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("UserInfo: Error when sending response: %s\n", err.Error())
+        clientApiLogger.Printf("UserInfo: Error when sending response: %s\n", err.Error())
         return
     }
     w.Header().Add("Content-Type", "application/json")
 
     // Log new user
-    contrLogger.Printf("UserInfo: User %s requested his info\n", user)
+    clientApiLogger.Printf("UserInfo: User %s requested his info\n", user)
 }

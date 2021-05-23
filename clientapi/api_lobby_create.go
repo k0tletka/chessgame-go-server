@@ -1,4 +1,4 @@
-package controllers
+package clientapi
 
 import (
     "net/http"
@@ -22,7 +22,7 @@ func LobbyCreate(w http.ResponseWriter, r *http.Request) {
 
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError("Invalid request")
-        contrLogger.Printf("LobbyCreate: Error when parsing request from client: %s\n", err.Error())
+        clientApiLogger.Printf("LobbyCreate: Error when parsing request from client: %s\n", err.Error())
         return
     }
 
@@ -50,11 +50,11 @@ func LobbyCreate(w http.ResponseWriter, r *http.Request) {
     if err := json.NewEncoder(w).Encode(resp); err != nil {
         writeError("Server error")
         w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("LobbyCreate: Error when sending response: %s\n", err.Error())
+        clientApiLogger.Printf("LobbyCreate: Error when sending response: %s\n", err.Error())
         return
     }
     w.Header().Add("Content-Type", "application/json")
 
     // Log
-    contrLogger.Printf("LobbyCreate: User %s created a new game with id %d\n", contextUser, gameId)
+    clientApiLogger.Printf("LobbyCreate: User %s created a new game with id %d\n", contextUser, gameId)
 }

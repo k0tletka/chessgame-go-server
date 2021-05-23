@@ -1,4 +1,4 @@
-package controllers
+package clientapi
 
 import (
     "net/http"
@@ -36,11 +36,11 @@ func LobbyList(w http.ResponseWriter, r *http.Request) {
     if err := json.NewEncoder(w).Encode(resp); err != nil {
         writeError("Server error")
         w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("LobbyList: Error when sending response: %s\n", err.Error())
+        clientApiLogger.Printf("LobbyList: Error when sending response: %s\n", err.Error())
         return
     }
     w.Header().Add("Content-Type", "application/json")
 
     // Log
-    contrLogger.Printf("LobbyList: User %s requested lobby list\n", contextUser)
+    clientApiLogger.Printf("LobbyList: User %s requested lobby list\n", contextUser)
 }

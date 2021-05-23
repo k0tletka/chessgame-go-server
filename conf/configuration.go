@@ -8,26 +8,38 @@ import (
 )
 
 type Configuration struct {
-    DB Database     `toml:"database"`
-    App Application `toml:"application"`
+    DB                  Database    `toml:"database"`
+    CAPI                ClientAPI   `toml:"client_api"`
+    GAPI                GameAPI     `toml:"game_api"`
 }
 
 type Database struct {
-    DatabaseDriver      string  `toml:"driver"`
-    ServerName          string  `toml:"server"`
-    DatabasePort        uint16  `toml:"dbport"`
-    InstanceName        string  `toml:"instance"`
-    DBName              string  `toml:"dbname"`
-    SqliteDatabasePath  string  `toml:"sqlite_dbpath"`
-    Username            string  `toml:"user"`
-    Password            string  `toml:"pass"`
-    ConnectionTimeout   int     `toml:"connection_timeout"`
+    DatabaseDriver      string      `toml:"driver"`
+    ServerName          string      `toml:"server"`
+    DatabasePort        uint16      `toml:"dbport"`
+    InstanceName        string      `toml:"instance"`
+    DBName              string      `toml:"dbname"`
+    SqliteDatabasePath  string      `toml:"sqlite_dbpath"`
+    Username            string      `toml:"user"`
+    Password            string      `toml:"pass"`
+    ConnectionTimeout   int         `toml:"connection_timeout"`
 }
 
-type Application struct {
-    ListenAddr          string  `toml:"listenaddr"`
-    ListenPort          uint16  `toml:"listenport"`
-    MarkdownFile        string  `toml:"markdown_file"`
+type ClientAPI struct {
+    ListenAddr          string      `toml:"listenaddr"`
+    ListenPort          uint16      `toml:"listenport"`
+    UseTLS              bool        `toml:"use_tls"`
+    CertFile            string      `toml:"cert_file"`
+    KeyFile             string      `toml:"key_file"`
+    MarkdownFile        string      `toml:"markdown_file"`
+}
+
+type GameAPI struct {
+    ListenAddr          string      `toml:"listenaddr"`
+    ListenPort          uint16      `toml:"listenport"`
+    UseTLS              bool        `toml:"use_tls"`
+    CertFile            string      `toml:"cert_file"`
+    KeyFile             string      `toml:"key_file"`
 }
 
 var (

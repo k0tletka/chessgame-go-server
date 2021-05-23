@@ -1,9 +1,9 @@
 package game
 
 import (
-    "encoding/json"
+    //"encoding/json"
     "time"
-    "strconv"
+    //"strconv"
 
     "GoChessgameServer/store"
     "GoChessgameServer/database"
@@ -59,11 +59,11 @@ func ControlGame(gameStore *store.GameStore) {
             // Timer out, it is draw
             res.Draw = true
 
-            jsonBytes, _ := json.Marshal(&res)
-            store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
+            //jsonBytes, _ := json.Marshal(&res)
+            //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
 
-            notifyData := notifyWaitGameData{TurnMade: false}
-            notifyPlayerWait(gameStore.GameID, &notifyData)
+            //notifyData := notifyWaitGameData{TurnMade: false}
+            //notifyPlayerWait(gameStore.GameID, &notifyData)
             _ = store.RemoveGameStore(gameStore.GameID)
 
             // Execute database query
@@ -79,12 +79,12 @@ func ControlGame(gameStore *store.GameStore) {
                     res.WinnerLogin = gameStore.PlayerOneLogin
                 }
 
-                jsonBytes, _ := json.Marshal(&res)
-                store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
+                //jsonBytes, _ := json.Marshal(&res)
+                //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
 
                 gameStore.SendTurnResponse <- ""
-                notifyData := notifyWaitGameData{TurnMade: true, Surrendered: true}
-                notifyPlayerWait(gameStore.GameID, &notifyData)
+                //notifyData := notifyWaitGameData{TurnMade: true, Surrendered: true}
+                //notifyPlayerWait(gameStore.GameID, &notifyData)
                 _ = store.RemoveGameStore(gameStore.GameID)
 
                 // Execute database query
@@ -117,14 +117,14 @@ func ControlGame(gameStore *store.GameStore) {
             if checkBlackWin(gameSession) {
                 // Prepare for sending response on channels
                 res.WinnerLogin = gameStore.PlayerTwoLogin
-                jsonBytes, _ := json.Marshal(&res)
-                store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
+                //jsonBytes, _ := json.Marshal(&res)
+                //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
 
                 // Send json to end game longpoll
                 gameStore.SendTurnResponse <- ""
 
-                notifyData := notifyWaitGameData{TurnMade: true, FigposX: turn.FigposX, FigposY: turn.FigposY, AltX: turn.AltX, AltY: turn.AltY}
-                notifyPlayerWait(gameStore.GameID, &notifyData)
+                //notifyData := notifyWaitGameData{TurnMade: true, FigposX: turn.FigposX, FigposY: turn.FigposY, AltX: turn.AltX, AltY: turn.AltY}
+                //notifyPlayerWait(gameStore.GameID, &notifyData)
                 _ = store.RemoveGameStore(gameStore.GameID)
 
                 // Write results to database
@@ -135,14 +135,14 @@ func ControlGame(gameStore *store.GameStore) {
             if checkWhiteWin(gameSession) {
                 // Prepare for sending response on channels
                 res.WinnerLogin = gameStore.PlayerOneLogin
-                jsonBytes, _ := json.Marshal(&res)
-                store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
+                //jsonBytes, _ := json.Marshal(&res)
+                //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
 
                 // Send json to end game longpoll
                 gameStore.SendTurnResponse <- ""
 
-                notifyData := notifyWaitGameData{TurnMade: true, FigposX: turn.FigposX, FigposY: turn.FigposY, AltX: turn.AltX, AltY: turn.AltY}
-                notifyPlayerWait(gameStore.GameID, &notifyData)
+                //notifyData := notifyWaitGameData{TurnMade: true, FigposX: turn.FigposX, FigposY: turn.FigposY, AltX: turn.AltX, AltY: turn.AltY}
+                //notifyPlayerWait(gameStore.GameID, &notifyData)
                 _ = store.RemoveGameStore(gameStore.GameID)
 
                 // Write results to database
@@ -151,8 +151,8 @@ func ControlGame(gameStore *store.GameStore) {
             }
 
             // Turn made, send notification to opponent and wait ack
-            notifyData := notifyWaitGameData{TurnMade: true, FigposX: turn.FigposX, FigposY: turn.FigposY, AltX: turn.AltX, AltY: turn.AltY}
-            notifyPlayerWait(gameStore.GameID, &notifyData)
+            //notifyData := notifyWaitGameData{TurnMade: true, FigposX: turn.FigposX, FigposY: turn.FigposY, AltX: turn.AltX, AltY: turn.AltY}
+            //notifyPlayerWait(gameStore.GameID, &notifyData)
             ackTimer := time.NewTimer(time.Second * 3)
 
             select {
@@ -164,8 +164,8 @@ func ControlGame(gameStore *store.GameStore) {
                     res.WinnerLogin = gameStore.PlayerTwoLogin
                 }
 
-                jsonBytes, _ := json.Marshal(&res)
-                store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
+                //jsonBytes, _ := json.Marshal(&res)
+                //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
                 gameStore.SendTurnResponse <- ""
                 _ = store.RemoveGameStore(gameStore.GameID)
 
@@ -325,10 +325,10 @@ func checkWhiteWin(session GameSession) bool {
 
 // This function sends to waiting player a notification
 // that opponent's turn has been ended
-func notifyPlayerWait(gameID int, resp *notifyWaitGameData) {
-    jsonBytes, _ := json.Marshal(&resp)
-    store.WaitTurnLM.Publish(strconv.Itoa(gameID), string(jsonBytes))
-}
+//func notifyPlayerWait(gameID int, resp *notifyWaitGameData) {
+    //jsonBytes, _ := json.Marshal(&resp)
+    //store.WaitTurnLM.Publish(strconv.Itoa(gameID), string(jsonBytes))
+//}
 
 // Function to save game data to database
 func saveResultToDatabase(resultObject *database.GamesHistory, isDraw bool, winnerLogin string, timeEnded time.Time) {

@@ -1,4 +1,4 @@
-package controllers
+package clientapi
 
 import (
     "net/http"
@@ -28,11 +28,11 @@ func IsAdmin(w http.ResponseWriter, r *http.Request) {
     if err := json.NewEncoder(w).Encode(resp); err != nil {
         writeError("Server error")
         w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("IsAdmin: Error when sending response: %s\n", err.Error())
+        clientApiLogger.Printf("IsAdmin: Error when sending response: %s\n", err.Error())
         return
     }
     w.Header().Add("Content-Type", "application/json")
 
     // Log new user
-    contrLogger.Printf("IsAdmin: User %s requested his admin status\n", user)
+    clientApiLogger.Printf("IsAdmin: User %s requested his admin status\n", user)
 }

@@ -1,4 +1,4 @@
-package controllers
+package clientapi
 
 import (
     "net/http"
@@ -22,7 +22,7 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
 
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError("Invalid request")
-        contrLogger.Printf("ChangePassword: Error when parsing request from client: %s\n", err.Error())
+        clientApiLogger.Printf("ChangePassword: Error when parsing request from client: %s\n", err.Error())
         return
     }
 
@@ -40,5 +40,5 @@ func ChangePassword(w http.ResponseWriter, r *http.Request) {
     }
 
     // Log password changed
-    contrLogger.Printf("ChangePassword: Changed password for user %s\n", user)
+    clientApiLogger.Printf("ChangePassword: Changed password for user %s\n", user)
 }

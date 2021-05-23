@@ -12,8 +12,10 @@ import (
     "gorm.io/gorm"
 )
 
-// Logger for module
-var authLogger *log.Logger
+var (
+    // Logger for module
+    authLogger *log.Logger
+)
 
 func init() {
     // Create logger for auth module

@@ -1,11 +1,23 @@
 [database]
-server = "localhost" # Server, where MSSQL database located
+driver = "sqlite | sqlserver" # Database driver to use (DBMS choose)
+server = "localhost" # Server, where DBMS located
 dbname = "dbname" # Database, that will be used for data storing
+sqlite_dbpath = "/test.db" # Path to database, if sqlite used
 user = "dbuser" # User, that have full access to specified database
 pass = "password" # Password of this user
-connection_timeout = 30 # Timeout for database connection
+connection_timeout = 30 # Timeout for database queries
 
-[application]
+[client_api]
 listenaddr = "localhost" # Address, on where server listens
-listenport = "12000" # Port, on where server listens
+listenport = 12000 # Port, on where server listens
+use_tls = true # Use TLS for HTTP server
+cert_file = "./cert.crt" # Path to certificate file
+key_file = "./key.crt" # Path to key file
 markdown_file = "motd.md" # File with the message of the day
+
+[game_api]
+listenaddr = "localhost" # Address, on where server listens
+listenport = 12001 # Port, on where server listens
+use_tls = true # Use TLS for HTTP server
+cert_file = "./cert.crt" # Path to certificate file
+key_file = "./key.crt" # Path to key file

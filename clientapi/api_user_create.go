@@ -1,4 +1,4 @@
-package controllers
+package clientapi
 
 import (
     "net/http"
@@ -8,21 +8,22 @@ import (
     "GoChessgameServer/auth"
 )
 
-// This controller perform user login
-// into application
-func LoginUsers(w http.ResponseWriter, r *http.Request) {
+// This controller create new users in the database
+// and returns signed jwt token to client
+func CreateLogin(w http.ResponseWriter, r *http.Request) {
 
     writeError := u.WriteErrorCreator(w)
 
     type reqType struct {
         Login string `json:"login"`
+        Email string `json:"mail"`
         Password string `json:"pass"`
     }
     req := reqType{}
 
     if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
         writeError("Invalid request")
-        contrLogger.Printf("LoginUsers: Error when parsing request from client: %s\n", err.Error())
+        clientApiLogger.Printf("CreateLoggin: Error when parsing request from client: %s\n", err.Error())
         return
     }
 
@@ -30,20 +31,20 @@ func LoginUsers(w http.ResponseWriter, r *http.Request) {
     success := u.ValidateValues(
         &u.VValue{Type: "Login", Value: req.Login},
         &u.VValue{Type: "Password", Value: req.Password},
+        &u.VValue{Type: "Email", Value: req.Email},
     )
 
     if !success {
-        writeError("Login or password doesn't satisfy value requirements")
+        writeError("Login, password or email doesn't satisfy value requirements")
         return
     }
 
-    // Auth user
-    if !auth.AuthUser(req.Login, req.Password) {
-        writeError("Login or password incorrect, or user already logged in, please try again")
+    if !auth.RegisterUser(req.Login, req.Password, req.Email) {
+        writeError("Register failed: maybe, login is occupied by another account or internal error occured")
         return
     }
 
-    // Password valid, generate jwt token
+    // Create new token
     claim := &auth.JWTUserClaim{Login: req.Login}
     token, err := auth.GenerateJWTToken(claim)
 
@@ -51,8 +52,9 @@ func LoginUsers(w http.ResponseWriter, r *http.Request) {
         writeError("Internal server error")
         return
     }
-    // Write response
-    resp := struct{
+
+    // Return to client login and his jwt token
+    resp := struct {
         Login string `json:"login"`
         JWTToken string `json:"token"`
     }{
@@ -63,11 +65,11 @@ func LoginUsers(w http.ResponseWriter, r *http.Request) {
     if err = json.NewEncoder(w).Encode(resp); err != nil {
         writeError("Server error")
         w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("LoginUsers: Error when sending response: %s\n", err.Error())
+        clientApiLogger.Printf("CreateLogin: Error when sending response: %s\n", err.Error())
         return
     }
     w.Header().Add("Content-Type", "application/json")
 
-    // Log user logged in
-    contrLogger.Printf("LoginUsers: User %s has been logged in\n", req.Login)
+    // Log new user
+    clientApiLogger.Printf("CreateLogin: Created new user %s\n", req.Login)
 }

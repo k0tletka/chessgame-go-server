@@ -1,4 +1,4 @@
-package controllers
+package clientapi
 
 import (
     "net/http"
@@ -20,5 +20,5 @@ func GetMotd(w http.ResponseWriter, r *http.Request) {
     io.WriteString(w, store.MotdString)
 
     // Log
-    contrLogger.Printf("GetMotd: User %s requested server motd\n", contextUser)
+    clientApiLogger.Printf("GetMotd: User %s requested server motd\n", contextUser)
 }

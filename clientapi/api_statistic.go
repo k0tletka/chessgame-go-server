@@ -1,4 +1,4 @@
-package controllers
+package clientapi
 
 import (
     "net/http"
@@ -47,7 +47,7 @@ func UserStatistic(w http.ResponseWriter, r *http.Request) {
 
         if json.NewDecoder(r.Body).Decode(&response); err != nil {
             writeError("Invalid parameters")
-            contrLogger.Printf("UserStatistic: Error when reading user request: %s\n", err.Error())
+            clientApiLogger.Printf("UserStatistic: Error when reading user request: %s\n", err.Error())
             return
         }
 
@@ -70,7 +70,7 @@ func UserStatistic(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         writeError("Connection error")
         w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("UserStatistic: Error when executing query: %s\n", err.Error())
+        clientApiLogger.Printf("UserStatistic: Error when executing query: %s\n", err.Error())
         return
     }
 
@@ -78,11 +78,11 @@ func UserStatistic(w http.ResponseWriter, r *http.Request) {
     if err = json.NewEncoder(w).Encode(userStatistics); err != nil {
         writeError("Server error")
         w.WriteHeader(http.StatusInternalServerError)
-        contrLogger.Printf("IsAdmin: Error when sending response: %s\n", err.Error())
+        clientApiLogger.Printf("IsAdmin: Error when sending response: %s\n", err.Error())
         return
     }
     w.Header().Add("Content-Type", "application/json")
 
     // Log
-    contrLogger.Printf("UserStatistic: User %s requested user statistic\n", contextUser)
+    clientApiLogger.Printf("UserStatistic: User %s requested user statistic\n", contextUser)
 }

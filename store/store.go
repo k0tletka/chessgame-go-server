@@ -3,65 +3,26 @@ package store
 import (
     "log"
     "os"
-    "sync"
-    "errors"
     "io/ioutil"
 
     "GoChessgameServer/logger"
     c "GoChessgameServer/conf"
-
-    lp "github.com/jcuga/golongpoll"
 )
 
 var (
-    // Errors
-    GameNotFoundError = errors.New("Game with the specified id is not found")
-
-    // Longpolls
-    WaitGameLM *lp.LongpollManager
-    WaitTurnLM *lp.LongpollManager
-    EndGameLM *lp.LongpollManager
-
     // String variable for markdown motd storing
     MotdString string
 
-    // Game stores
-    GameStores = []GameStore{}
-
     // Utility
     storeLogger *log.Logger
-    idGameCounter = 0
-    gameStoresMutex = sync.Mutex{}
 )
-
-// Type to input turns
-type GameTurn struct {
-    FigposX int
-    FigposY int
-    AltX int
-    AltY int
-    Surrender bool
-}
-
-// This type represents a game
-type GameStore struct {
-    GameID int
-    PlayerOneLogin string
-    PlayerTwoLogin string
-    GameStarted bool
-    IsPlayerOneTurn bool
-    GameTitle string
-    AckChannel chan string
-    SendTurnRequest chan *GameTurn
-    SendTurnResponse chan string
-}
 
 func init() {
     // Create store logger
     storeLogger = logger.AddNewLogger("Store", os.Stdout, log.LstdFlags | log.Lmsgprefix)
 
     // Load markdown file
-    mdFile := c.Conf.App.MarkdownFile
+    mdFile := c.Conf.CAPI.MarkdownFile
 
     if mdFile == "" {
         storeLogger.Println("Markdown file is not set, skipping...")
@@ -83,91 +44,4 @@ func init() {
 
         MotdString = string(readedMotd)
     }
-
-    // Initialize longpoll managers
-    var err error
-
-    WaitGameLM, err = lp.StartLongpoll(lp.Options{
-        EventTimeToLiveSeconds: 3,
-        DeleteEventAfterFirstRetrieval: true,
-        MaxLongpollTimeoutSeconds: 3600,
-    })
-    if err != nil {
-        storeLogger.Fatalln(err)
-    }
-
-    WaitTurnLM, err = lp.StartLongpoll(lp.Options{
-        EventTimeToLiveSeconds: 3,
-        DeleteEventAfterFirstRetrieval: true,
-        MaxLongpollTimeoutSeconds: 600,
-    })
-    if err != nil {
-        storeLogger.Fatalln(err)
-    }
-
-    EndGameLM, err = lp.StartLongpoll(lp.Options{
-        EventTimeToLiveSeconds: 3600 * 24,
-        DeleteEventAfterFirstRetrieval: false,
-        MaxLongpollTimeoutSeconds: 3600 * 24,
-    })
-    if err != nil {
-        storeLogger.Fatalln(err)
-    }
-}
-
-// Functions to add, remove and getting game by id
-func RegisterNewGameStore(gametitle string, player string) int {
-
-    // Thread-safe operation
-    gameStoresMutex.Lock()
-    idGameCounter++
-
-    GameStores = append(GameStores, GameStore{
-        GameID: idGameCounter,
-        PlayerOneLogin: player,
-        PlayerTwoLogin: "",
-        GameStarted: false,
-        IsPlayerOneTurn: true,
-        GameTitle: gametitle,
-        AckChannel: make(chan string),
-        SendTurnRequest: make(chan *GameTurn, 1),
-        SendTurnResponse: make(chan string, 1),
-    })
-
-    gameStoresMutex.Unlock()
-    return idGameCounter
-}
-
-func RemoveGameStore(id int) error {
-
-    // Thread-safe operation
-    gameStoresMutex.Lock()
-
-    for i, proc := range GameStores {
-        if proc.GameID == id {
-            close(GameStores[i].AckChannel)
-            close(GameStores[i].SendTurnRequest)
-            close(GameStores[i].SendTurnResponse)
-
-            GameStores[i] = GameStores[len(GameStores) - 1]
-            GameStores = GameStores[:len(GameStores) - 1]
-
-            gameStoresMutex.Unlock()
-            return nil
-        }
-    }
-
-    gameStoresMutex.Unlock()
-    return GameNotFoundError
-}
-
-func GetGameStore(id int) (*GameStore, error) {
-
-    for i, proc := range GameStores {
-        if proc.GameID == id {
-            return &GameStores[i], nil
-        }
-    }
-
-    return nil, GameNotFoundError
 }

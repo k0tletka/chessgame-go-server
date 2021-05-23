@@ -1,40 +1,81 @@
 package main
 
 import (
-    "fmt"
     "log"
     "os"
+    "os/signal"
+    "syscall"
+    "sync"
     "net/http"
+    "context"
 
+    // Trigger init methods for packages
     "GoChessgameServer/logger"
-    c "GoChessgameServer/conf"
+    _ "GoChessgameServer/conf"
     _ "GoChessgameServer/store"
-    r "GoChessgameServer/router"
     _ "GoChessgameServer/database"
-    _ "GoChessgameServer/game"
+
+    // Servers
+    clientAPI "GoChessgameServer/clientapi"
+    gameAPI "GoChessgameServer/gameapi"
+)
+
+var (
+    // List of running servers
+    servers = []*http.Server{}
 )
 
 func main() {
-    // Register main logger
+
+    // Defined logger for main application
     mainLogger := logger.AddNewLogger("Application", os.Stdout, log.LstdFlags | log.Lmsgprefix)
 
-    // Check configuration listenport and listenaddr, set default if parameter omited
-    var listenaddr string = "0.0.0.0"
-    var listenport uint16 = 80
+    // Define handling of process signals
+    signalChan := make(chan os.Signal, 1)
+    signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
-    if c.DecodeMetadata.IsDefined("application", "listenaddr") {
-        listenaddr = c.Conf.App.ListenAddr
+    // Define channel for server-object grabbing from servers goroutines
+    serverChan := make(chan *http.Server, 1)
+
+    go func() {
+        for server := range serverChan {
+            servers = append(servers, server)
+        }
+    }()
+
+    // sync.WaitGroup for waiting to start all servers
+    srvWaitor := &sync.WaitGroup{}
+    srvWaitor.Add(2) // Client API, Game API
+
+    // Start servers
+    go clientAPI.InitializeClientAPIServer(srvWaitor, serverChan)
+
+    go gameAPI.InitializeGameAPIServer(srvWaitor, serverChan)
+
+    // Wait for servers to start
+    srvWaitor.Wait()
+    close(serverChan)
+
+    mainLogger.Println("All servers has started successfully")
+
+    // Signal handling
+    for inputSignal := range signalChan {
+        switch inputSignal {
+        case syscall.SIGHUP:
+            // Ignore signal
+            continue
+        case syscall.SIGINT, syscall.SIGTERM:
+            mainLogger.Println("Terminating...")
+
+            // Close all servers gracefully
+            for _, server := range servers {
+                if err := server.Shutdown(context.Background()); err != nil {
+                    mainLogger.Fatalln("Error when stoping server: ", err.Error())
+                }
+            }
+
+            // Exit application
+            os.Exit(0)
+        }
     }
-
-    if c.DecodeMetadata.IsDefined("application", "listenport") {
-        listenport = c.Conf.App.ListenPort
-    }
-
-    // Set router handler and start REST API Server
-    http.Handle("/", r.Router)
-    mainLogger.Fatalln(http.ListenAndServe(fmt.Sprintf(
-        "%s:%d",
-        listenaddr,
-        listenport,
-    ), nil))
 }
