@@ -1,4 +1,4 @@
-package gameapi
+package websocket
 
 import (
     "time"
@@ -16,6 +16,10 @@ var (
 type WebsocketConnection struct {
     conn *websocket.Conn
 
+    // Pointer to store collection to have
+    // ability to delete connection from list
+    store *WebsocketStore
+
     // Pong channel
     pongChannel chan struct{}
 
@@ -28,16 +32,19 @@ type WebsocketConnection struct {
 }
 
 // Function to create new websocket connection
-func NewWebsocketConnection(conn *websocket.Conn, readHandler func(*WebsocketConnection, []byte)) *WebsocketConnection {
+func NewWebsocketConnection(conn *websocket.Conn, readHandler func(*WebsocketConnection, []byte), store *WebsocketStore) *WebsocketConnection {
     pongChannel := make(chan struct{}, 1)
 
     result := &WebsocketConnection{
         conn: conn,
+        store: store,
         pongChannel: pongChannel,
         openStateMutex: &sync.Mutex{},
         openState: true,
         readHandlerFunction: readHandler,
     }
+
+    store.InsertConnection(result)
 
     // Set handler on pong messages
     conn.SetPongHandler(func (appData string) error {
@@ -53,6 +60,10 @@ func NewWebsocketConnection(conn *websocket.Conn, readHandler func(*WebsocketCon
 // Public methods
 func (wc *WebsocketConnection) GetConnection() *websocket.Conn {
     return wc.conn
+}
+
+func (wc *WebsocketConnection) GetConnectionStore() *WebsocketStore {
+    return wc.store
 }
 
 // Connection close method
@@ -72,7 +83,7 @@ func (wc *WebsocketConnection) closeConnectionForce() {
 
         // Close connection
         wc.conn.Close()
-        wsStore.DeleteConnection(wc)
+        wc.store.DeleteConnection(wc)
 
         wc.openState = false
     }
@@ -107,7 +118,7 @@ func (wc *WebsocketConnection) PingerGoroutine() {
 
         select {
         case <-timer.C:
-            gameApiLogger.Printf("Websocket connection for %s expired, closing...\n", wc.conn.RemoteAddr())
+            websocketLogger.Printf("Websocket connection for %s expired, closing...\n", wc.conn.RemoteAddr())
             wc.closeConnectionForce()
             return
         case <-wc.pongChannel:

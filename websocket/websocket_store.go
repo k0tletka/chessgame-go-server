@@ -1,4 +1,4 @@
-package gameapi
+package websocket
 
 import (
     "sync"
@@ -29,7 +29,7 @@ func (w *WebsocketStore) DeleteConnection(conn *WebsocketConnection) {
 }
 
 func (w *WebsocketStore) GetConnections() []*WebsocketConnection {
-    result := make([]*WebsocketConnection, len(w.wsConns), len(w.wsConns))
+    result := []*WebsocketConnection{}
 
     for k, _ := range w.wsConns {
         result = append(result, k)

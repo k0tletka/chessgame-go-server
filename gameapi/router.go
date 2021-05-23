@@ -7,13 +7,14 @@ import (
     "fmt"
 
     c "GoChessgameServer/conf"
+    ws "GoChessgameServer/websocket"
 
     "github.com/gorilla/mux"
 )
 
 var (
     // Websocket store object
-    wsStore = NewWebsocketStore()
+    wsStore = ws.NewWebsocketStore()
 )
 
 // Function to initialize router for game API

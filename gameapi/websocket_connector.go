@@ -4,6 +4,8 @@ import (
     "net/http"
     "time"
 
+    ws "GoChessgameServer/websocket"
+
     "github.com/gorilla/websocket"
 )
 
@@ -24,14 +26,16 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Create new WebsocketConnection and insert into list
-    wc := NewWebsocketConnection(c, websocketReadHandler)
-    wsStore.InsertConnection(wc)
+    // Create new WebsocketConnection
+    ws.NewWebsocketConnection(c, websocketReadHandler, wsStore)
+    return
 }
 
 // Handler for websocket requests from peer
-func websocketReadHandler(wc *WebsocketConnection, data []byte) {
-    // Send hello response
-    response := "Input string: " + string(data)
-    wc.GetConnection().WriteMessage(websocket.TextMessage, []byte(response))
+func websocketReadHandler(wc *ws.WebsocketConnection, data []byte) {
+    for _, v := range wc.GetConnectionStore().GetConnections() {
+        if v != wc {
+            v.GetConnection().WriteMessage(websocket.TextMessage, data)
+        }
+    }
 }
