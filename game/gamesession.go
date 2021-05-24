@@ -165,9 +165,9 @@ func CreateNewSessionList() *GameSessionList {
 }
 
 // Function to register new game session
-func (g *GameSessionList) RegisterNewGameSession(gameTitle string, userInfo *GameClientConnection, playersMax int) error {
+func (g *GameSessionList) RegisterNewGameSession(gameTitle string, userInfo *GameClientConnection, playersMax int) (int, error) {
     if playersMax < 2 {
-        return NotEnoughtPlayers
+        return 0, NotEnoughtPlayers
     }
 
     g.Lock()
@@ -189,7 +189,7 @@ func (g *GameSessionList) RegisterNewGameSession(gameTitle string, userInfo *Gam
 
     g.Unlock()
 
-    return nil
+    return g.idGameCounter, nil
 }
 
 // Function to get appropriate game session by id

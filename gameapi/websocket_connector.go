@@ -87,6 +87,7 @@ func websocketReadHandler(wc *ws.WebsocketConnection, data []byte) {
     // Perform request routing based on request method
     routingPaths := map[string]func(*ws.WebsocketConnection, *WebsocketRequest, *auth.JWTUserClaim){
         "api_connect": WebsocketAPIConnectHandle,
+        "api_create": WebsocketAPICreateHandle,
     }
 
     if handler, ok := routingPaths[req.MethodPath]; ok {
