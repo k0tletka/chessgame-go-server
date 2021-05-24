@@ -12,6 +12,7 @@ import (
 
 // This type represents json model for each turn, that clients making
 type Turn struct {
+    GameID      int     `json:"game_id"`
     Login       string  `json:"login"`
     FigposX     int     `json:"figposx"`
     FigposY     int     `json:"figposy"`
@@ -22,6 +23,7 @@ type Turn struct {
 
 // This type represents end game json model
 type endGameResult struct {
+    IsDraw      bool    `json:"is_draw"`
     WinnerLogin string  `json:"winner_login"`
 }
 
@@ -66,6 +68,8 @@ func controlGame(gameSession *GameSession) {
 
         select {
         case <-turnTimer.C:
+            broadcastJSONMessages(&endGameResult{IsDraw: true}, conn, gameSession)
+
             // Turn time was exceed
             saveResultsToDatabase(gameSession, players, true, "", gameStartedTimestamp)
             closeConnections(gameSession)
@@ -79,6 +83,7 @@ func controlGame(gameSession *GameSession) {
                 // Check that at least two connections left. If amount of connections
                 // is lower that two, chose winner and close session
                 if aPl := gameSession.GetAllPlayers(); len(aPl) == 1 {
+                    broadcastJSONMessages(&endGameResult{WinnerLogin: aPl[0].Login}, conn, gameSession)
                     saveResultsToDatabase(gameSession, players, false, aPl[0].Login, gameStartedTimestamp)
                     closeConnections(gameSession)
                     return
@@ -124,6 +129,8 @@ func controlGame(gameSession *GameSession) {
                     } else { winnerGameObject = turner.GameConnection }
                 }
 
+                broadcastJSONMessages(&endGameResult{WinnerLogin: winnerGameObject.Login}, conn, gameSession)
+
                 // Write results to database
                 saveResultsToDatabase(gameSession, players, false, winnerGameObject.Login, gameStartedTimestamp)
                 closeConnections(gameSession)
@@ -142,6 +149,8 @@ func controlGame(gameSession *GameSession) {
                     } else { winnerGameObject = turner.GameConnection }
                 }
 
+                broadcastJSONMessages(&endGameResult{WinnerLogin: winnerGameObject.Login}, conn, gameSession)
+
                 // Write results to database
                 saveResultsToDatabase(gameSession, players, false, winnerGameObject.Login, gameStartedTimestamp)
                 closeConnections(gameSession)
@@ -151,16 +160,7 @@ func controlGame(gameSession *GameSession) {
             performNextTurn = true
             whiteTurn = !whiteTurn
 
-            data, err := json.Marshal(turn)
-            if err != nil {
-                panic(err)
-            }
-
-            for _, v := range gameSession.GetAllPlayers() {
-                if v != conn {
-                    v.Connection.GetConnection().WriteMessage(websocket.TextMessage, data)
-                }
-            }
+            broadcastJSONMessages(&turn, conn, gameSession)
         case <-conn.Connection.ConnectionClosed:
             gameSession.deleteConnection(conn)
 
@@ -351,3 +351,18 @@ func closeConnections(session *GameSession) {
         session.deleteConnection(v)
     }
 }
+
+// Function to broadcast json messages
+func broadcastJSONMessages(message interface{}, currConnection *GameClientConnection, session *GameSession) {
+    data, err := json.Marshal(message)
+    if err != nil {
+        panic(err)
+    }
+
+    for _, v := range session.GetAllPlayers() {
+        if v != currConnection {
+            v.Connection.GetConnection().WriteMessage(websocket.TextMessage, data)
+        }
+    }
+}
+
