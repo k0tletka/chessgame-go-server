@@ -3,22 +3,16 @@ package game
 import (
     "errors"
 
-    "GoChessgameServer/store"
     u "GoChessgameServer/util"
 )
 
-// Errors
-var CantPassError = errors.New("Cant pass with this figure on specified location")
+var (
+    // Errors
+    CantPassError = errors.New("Cant pass with this figure on specified location")
+)
 
 // This type represent a chess table
 type ChessTable [8][8]Figure
-
-// This type represents a game session
-// that contains game states
-type GameSession struct {
-    gameStore *store.GameStore
-    cTable *ChessTable
-}
 
 // Interface that represents a chess figure
 type Figure interface {

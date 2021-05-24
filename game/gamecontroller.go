@@ -1,228 +1,224 @@
 package game
 
 import (
-    //"encoding/json"
+    "encoding/json"
     "time"
-    //"strconv"
 
-    "GoChessgameServer/store"
     "GoChessgameServer/database"
+    u "GoChessgameServer/util"
+
+    "github.com/gorilla/websocket"
 )
 
-const queryResString = `INSERT INTO
-    dbo.GamesHistory(GameStartTimestamp, GameEndTimestamp, IsDraw, WinnerLogin, PlayerOneLogin, PlayerTwoLogin)
-VALUES
-    ($1, $2, $3, $4, $5, $6)`
+// This type represents json model for each turn, that clients making
+type Turn struct {
+    Login       string  `json:"login"`
+    FigposX     int     `json:"figposx"`
+    FigposY     int     `json:"figposy"`
+    AltX        int     `json:"xalt"`
+    AltY        int     `json:"yalt"`
+    Surrender   bool    `json:"surrender"`
+}
 
-type notifyWaitGameData struct {
-    TurnMade bool `json:"turnMade"`
-    FigposX int `json:"figposx"`
-    FigposY int `json:"figposy"`
-    AltX int `json:"xalt"`
-    AltY int `json:"yalt"`
-    Surrendered bool `json:"surrendered"`
+// This type represents end game json model
+type endGameResult struct {
+    WinnerLogin string  `json:"winner_login"`
 }
 
 // This function is a main entrypoint handler,
 // that controls game process.
 // This function starts as coroutine
-func ControlGame(gameStore *store.GameStore) {
-
-    res := struct{
-        WinnerLogin string `json:"winned"`
-        Draw bool `json:"isdraw"`
-    }{}
-    table := ChessTable{}
-    gameStarted := time.Now()
-
-    // Create game session
-    gameSession := GameSession{
-        gameStore: gameStore,
-        cTable: &table,
-    }
-
-    // Create instance of game result for database
-    databaseResult := database.GamesHistory{
-        GameStartTimestamp: time.Now(),
-        PlayerOneLoginKey: gameStore.PlayerOneLogin,
-        PlayerTwoLoginKey: gameStore.PlayerTwoLogin,
-    }
+func controlGame(gameSession *GameSession) {
 
     // Fill table with figures
-    fillTable(gameSession)
+    table := createNewTable()
+
+    // Turner to get rid about who must make turn next
+    var turner *GameTurner
+
+    gameStartedTimestamp := time.Now()
+    whiteTurn := true
+    performNextTurn := true
+
+    // Get copy of players
+    players := []string{}
+    for _, v := range gameSession.GetAllPlayers() {
+        players = append(players, v.Login)
+    }
 
     // Handle turns
     turnTimer := time.NewTimer(time.Minute * 5)
+
     for {
+        // Get player that must make next turn
+        if performNextTurn {
+            if turner == nil {
+                turner = gameSession.PlayerTurner
+            } else {
+                turner = turner.Next
+            }
+
+            performNextTurn = false
+        }
+
+        conn := turner.GameConnection
+        wsConn := conn.Connection.GetConnection()
+
         select {
         case <-turnTimer.C:
-            // Timer out, it is draw
-            res.Draw = true
-
-            //jsonBytes, _ := json.Marshal(&res)
-            //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
-
-            //notifyData := notifyWaitGameData{TurnMade: false}
-            //notifyPlayerWait(gameStore.GameID, &notifyData)
-            _ = store.RemoveGameStore(gameStore.GameID)
-
-            // Execute database query
-            saveResultToDatabase(&databaseResult, true, "", gameStarted)
+            // Turn time was exceed
+            saveResultsToDatabase(gameSession, players, true, "", gameStartedTimestamp)
+            closeConnections(gameSession)
             return
-        case turn := <-gameStore.SendTurnRequest:
-            // Handle turn
+        case turn := <-conn.ReadChannel:
             if turn.Surrender {
-                // Player surrendered, write results
-                if gameStore.IsPlayerOneTurn {
-                    res.WinnerLogin = gameStore.PlayerTwoLogin
-                } else {
-                    res.WinnerLogin = gameStore.PlayerOneLogin
+                // Close connection for client that surrended
+                conn.Connection.CloseConnection("You have surrended. Game ended")
+                gameSession.deleteConnection(conn)
+
+                // Check that at least two connections left. If amount of connections
+                // is lower that two, chose winner and close session
+                if aPl := gameSession.GetAllPlayers(); len(aPl) == 1 {
+                    saveResultsToDatabase(gameSession, players, false, aPl[0].Login, gameStartedTimestamp)
+                    closeConnections(gameSession)
+                    return
+                } else if len(aPl) < 1 {
+                    return
                 }
 
-                //jsonBytes, _ := json.Marshal(&res)
-                //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
-
-                gameStore.SendTurnResponse <- ""
-                //notifyData := notifyWaitGameData{TurnMade: true, Surrendered: true}
-                //notifyPlayerWait(gameStore.GameID, &notifyData)
-                _ = store.RemoveGameStore(gameStore.GameID)
-
-                // Execute database query
-                saveResultToDatabase(&databaseResult, false, res.WinnerLogin, gameStarted)
-                return
+                performNextTurn = true
             }
 
             // Check figure existent
             if table[turn.FigposX][turn.FigposY] == nil {
-                gameStore.SendTurnResponse <- "There is no figure"
+                wsConn.WriteMessage(websocket.TextMessage, u.ErrorJson("There is no figure"))
                 continue
             }
 
             // Check for player turn and perform operation
-            if (gameStore.IsPlayerOneTurn && table[turn.FigposX][turn.FigposY].IsFigureBlack()) || (!gameStore.IsPlayerOneTurn && !table[turn.FigposX][turn.FigposY].IsFigureBlack()) {
-                gameStore.SendTurnResponse <- "You can't move figure that you don't own"
+            if (whiteTurn && table[turn.FigposX][turn.FigposY].IsFigureBlack()) ||
+                (!whiteTurn && !table[turn.FigposX][turn.FigposY].IsFigureBlack()) {
+
+                wsConn.WriteMessage(websocket.TextMessage, u.ErrorJson("You can't move figure that you don't own"))
                 continue
             }
 
             if !table[turn.FigposX][turn.FigposY].CanFigurePass(turn.AltX, turn.AltY) {
-                gameStore.SendTurnResponse <- "You can't move this figure at the specified location"
+                wsConn.WriteMessage(websocket.TextMessage, u.ErrorJson("You can't move this figure at the specified location"))
                 continue
             }
-
 
             // Pass table[turn.FigposX][turn.FigposY]
             _ = table[turn.FigposX][turn.FigposY].Pass(turn.AltX, turn.AltY)
 
             // Check win state
-            if checkBlackWin(gameSession) {
-                // Prepare for sending response on channels
-                res.WinnerLogin = gameStore.PlayerTwoLogin
-                //jsonBytes, _ := json.Marshal(&res)
-                //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
+            if checkBlackWin(table) {
+                var winnerGameObject *GameClientConnection
 
-                // Send json to end game longpoll
-                gameStore.SendTurnResponse <- ""
-
-                //notifyData := notifyWaitGameData{TurnMade: true, FigposX: turn.FigposX, FigposY: turn.FigposY, AltX: turn.AltX, AltY: turn.AltY}
-                //notifyPlayerWait(gameStore.GameID, &notifyData)
-                _ = store.RemoveGameStore(gameStore.GameID)
+                if !whiteTurn {
+                    winnerGameObject = conn
+                } else {
+                    turner = turner.Next
+                    if turner == nil {
+                        winnerGameObject = gameSession.PlayerTurner.GameConnection
+                    } else { winnerGameObject = turner.GameConnection }
+                }
 
                 // Write results to database
-                saveResultToDatabase(&databaseResult, false, res.WinnerLogin, gameStarted)
+                saveResultsToDatabase(gameSession, players, false, winnerGameObject.Login, gameStartedTimestamp)
+                closeConnections(gameSession)
                 return
             }
 
-            if checkWhiteWin(gameSession) {
-                // Prepare for sending response on channels
-                res.WinnerLogin = gameStore.PlayerOneLogin
-                //jsonBytes, _ := json.Marshal(&res)
-                //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
+            if checkWhiteWin(table) {
+                var winnerGameObject *GameClientConnection
 
-                // Send json to end game longpoll
-                gameStore.SendTurnResponse <- ""
-
-                //notifyData := notifyWaitGameData{TurnMade: true, FigposX: turn.FigposX, FigposY: turn.FigposY, AltX: turn.AltX, AltY: turn.AltY}
-                //notifyPlayerWait(gameStore.GameID, &notifyData)
-                _ = store.RemoveGameStore(gameStore.GameID)
+                if whiteTurn {
+                    winnerGameObject = conn
+                } else {
+                    turner = turner.Next
+                    if turner == nil {
+                        winnerGameObject = gameSession.PlayerTurner.GameConnection
+                    } else { winnerGameObject = turner.GameConnection }
+                }
 
                 // Write results to database
-                saveResultToDatabase(&databaseResult, false, res.WinnerLogin, gameStarted)
+                saveResultsToDatabase(gameSession, players, false, winnerGameObject.Login, gameStartedTimestamp)
+                closeConnections(gameSession)
                 return
             }
 
-            // Turn made, send notification to opponent and wait ack
-            //notifyData := notifyWaitGameData{TurnMade: true, FigposX: turn.FigposX, FigposY: turn.FigposY, AltX: turn.AltX, AltY: turn.AltY}
-            //notifyPlayerWait(gameStore.GameID, &notifyData)
-            ackTimer := time.NewTimer(time.Second * 3)
+            performNextTurn = true
+            whiteTurn = !whiteTurn
 
-            select {
-            case <-ackTimer.C:
-                // Opponent not response, aborting game
-                if gameStore.IsPlayerOneTurn {
-                    res.WinnerLogin = gameStore.PlayerOneLogin
-                } else {
-                    res.WinnerLogin = gameStore.PlayerTwoLogin
+            data, err := json.Marshal(turn)
+            if err != nil {
+                panic(err)
+            }
+
+            for _, v := range gameSession.GetAllPlayers() {
+                if v != conn {
+                    v.Connection.GetConnection().WriteMessage(websocket.TextMessage, data)
                 }
+            }
+        case <-conn.Connection.ConnectionClosed:
+            gameSession.deleteConnection(conn)
 
-                //jsonBytes, _ := json.Marshal(&res)
-                //store.EndGameLM.Publish(strconv.Itoa(gameStore.GameID), string(jsonBytes))
-                gameStore.SendTurnResponse <- ""
-                _ = store.RemoveGameStore(gameStore.GameID)
-
-                // Write results to database
-                saveResultToDatabase(&databaseResult, false, res.WinnerLogin, gameStarted)
+            // Check that at least two connections left. If amount of connections
+            // is lower that two, chose winner and close session
+            if aPl := gameSession.GetAllPlayers(); len(aPl) == 1 {
+                saveResultsToDatabase(gameSession, players, false, aPl[0].Login, gameStartedTimestamp)
+                closeConnections(gameSession)
                 return
-            case <-gameStore.AckChannel:
-                turnTimer = time.NewTimer(time.Minute * 5)
-                if gameStore.IsPlayerOneTurn {
-                    gameStore.IsPlayerOneTurn = false
-                } else {
-                    gameStore.IsPlayerOneTurn = true
-                }
-
-                gameStore.SendTurnResponse <- ""
+            } else if len(aPl) < 1 {
+                return
             }
         }
+
     }
 }
 
-// This function fills table with figures
-func fillTable(session GameSession) {
+// This function creates new table with filled figures in stardart places
+func createNewTable() *ChessTable {
+    table := &ChessTable{}
+
     // Pawn
     for i := 0; i <= 7; i++ {
-        session.cTable[1][i] = &Pawn{cTable: session.cTable, x: 1, y: i, isBlack: false, isMoved: false}
-        session.cTable[6][i] = &Pawn{cTable: session.cTable, x: 6, y: i, isBlack: true, isMoved: false}
+        table[1][i] = &Pawn{cTable: table, x: 1, y: i, isBlack: false, isMoved: false}
+        table[6][i] = &Pawn{cTable: table, x: 6, y: i, isBlack: true, isMoved: false}
     }
 
     // Rook
-    session.cTable[0][0] = &Rook{cTable: session.cTable, x: 0, y: 0, isBlack: false}
-    session.cTable[0][7] = &Rook{cTable: session.cTable, x: 0, y: 7, isBlack: false}
-    session.cTable[7][0] = &Rook{cTable: session.cTable, x: 7, y: 0, isBlack: true}
-    session.cTable[7][7] = &Rook{cTable: session.cTable, x: 7, y: 7, isBlack: true}
+    table[0][0] = &Rook{cTable: table, x: 0, y: 0, isBlack: false}
+    table[0][7] = &Rook{cTable: table, x: 0, y: 7, isBlack: false}
+    table[7][0] = &Rook{cTable: table, x: 7, y: 0, isBlack: true}
+    table[7][7] = &Rook{cTable: table, x: 7, y: 7, isBlack: true}
 
     // Knight
-    session.cTable[0][1] = &Knight{cTable: session.cTable, x: 0, y: 1, isBlack: false}
-    session.cTable[0][6] = &Knight{cTable: session.cTable, x: 0, y: 6, isBlack: false}
-    session.cTable[7][1] = &Knight{cTable: session.cTable, x: 7, y: 1, isBlack: true}
-    session.cTable[7][6] = &Knight{cTable: session.cTable, x: 7, y: 6, isBlack: true}
+    table[0][1] = &Knight{cTable: table, x: 0, y: 1, isBlack: false}
+    table[0][6] = &Knight{cTable: table, x: 0, y: 6, isBlack: false}
+    table[7][1] = &Knight{cTable: table, x: 7, y: 1, isBlack: true}
+    table[7][6] = &Knight{cTable: table, x: 7, y: 6, isBlack: true}
 
     // Bishop
-    session.cTable[0][2] = &Bishop{cTable: session.cTable, x: 0, y: 2, isBlack: false}
-    session.cTable[0][5] = &Bishop{cTable: session.cTable, x: 0, y: 5, isBlack: false}
-    session.cTable[7][2] = &Bishop{cTable: session.cTable, x: 7, y: 2, isBlack: true}
-    session.cTable[7][5] = &Bishop{cTable: session.cTable, x: 7, y: 5, isBlack: true}
+    table[0][2] = &Bishop{cTable: table, x: 0, y: 2, isBlack: false}
+    table[0][5] = &Bishop{cTable: table, x: 0, y: 5, isBlack: false}
+    table[7][2] = &Bishop{cTable: table, x: 7, y: 2, isBlack: true}
+    table[7][5] = &Bishop{cTable: table, x: 7, y: 5, isBlack: true}
 
     // Queen
-    session.cTable[0][3] = &Queen{cTable: session.cTable, x: 0, y: 3, isBlack: false}
-    session.cTable[7][3] = &Queen{cTable: session.cTable, x: 7, y: 3, isBlack: true}
+    table[0][3] = &Queen{cTable: table, x: 0, y: 3, isBlack: false}
+    table[7][3] = &Queen{cTable: table, x: 7, y: 3, isBlack: true}
 
     // King
-    session.cTable[0][4] = &King{cTable: session.cTable, x: 0, y: 4, isBlack: false}
-    session.cTable[7][4] = &King{cTable: session.cTable, x: 7, y: 4, isBlack: true}
+    table[0][4] = &King{cTable: table, x: 0, y: 4, isBlack: false}
+    table[7][4] = &King{cTable: table, x: 7, y: 4, isBlack: true}
+
+    return table
 }
 
 // This functions checks black and white winner states
-func checkBlackWin(session GameSession) bool {
+func checkBlackWin(table *ChessTable) bool {
     // Find king
     var king Figure
     var kingx int
@@ -230,7 +226,7 @@ func checkBlackWin(session GameSession) bool {
 
     for i := 0; i <= 7; i++ {
         for j := 0; j <= 7; j++ {
-            if k, ok := session.cTable[i][j].(*King); ok && !k.IsFigureBlack() {
+            if k, ok := table[i][j].(*King); ok && !k.IsFigureBlack() {
                 king = k
                 kingx = k.x
                 kingy = k.y
@@ -255,8 +251,8 @@ func checkBlackWin(session GameSession) bool {
         // Check if every black figure can beat king
         for i := 0; i <= 7; i++ {
             for j := 0; j <= 7; j++ {
-                if session.cTable[i][j] != nil && session.cTable[i][j].IsFigureBlack() {
-                    canBeat := session.cTable[i][j].CanFigurePass(i - (kingx - offset[0]), j - (kingy - offset[1]))
+                if table[i][j] != nil && table[i][j].IsFigureBlack() {
+                    canBeat := table[i][j].CanFigurePass(i - (kingx - offset[0]), j - (kingy - offset[1]))
                     if canBeat { whereKingMaybeOffsets[offset] = true }
                 }
             }
@@ -273,14 +269,14 @@ func checkBlackWin(session GameSession) bool {
     return true
 }
 
-func checkWhiteWin(session GameSession) bool {
+func checkWhiteWin(table *ChessTable) bool {
     // Find king
     var king Figure
     var kingx int
     var kingy int
     for i := 7; i >= 0; i-- {
         for j := 7; j >= 0; j-- {
-            if k, ok := session.cTable[i][j].(*King); ok && k.IsFigureBlack() {
+            if k, ok := table[i][j].(*King); ok && k.IsFigureBlack() {
                 king = k
                 kingx = k.x
                 kingy = k.y
@@ -305,8 +301,8 @@ func checkWhiteWin(session GameSession) bool {
         // Check if every black figure can beat king
         for i := 0; i <= 7; i++ {
             for j := 0; j <= 7; j++ {
-                if session.cTable[i][j] != nil && !session.cTable[i][j].IsFigureBlack() {
-                    canBeat := session.cTable[i][j].CanFigurePass((kingx + offset[0]) - i, (kingy + offset[1]) - j)
+                if table[i][j] != nil && !table[i][j].IsFigureBlack() {
+                    canBeat := table[i][j].CanFigurePass((kingx + offset[0]) - i, (kingy + offset[1]) - j)
                     if canBeat { whereKingMaybeOffsets[offset] = true }
                 }
             }
@@ -323,19 +319,35 @@ func checkWhiteWin(session GameSession) bool {
     return true
 }
 
-// This function sends to waiting player a notification
-// that opponent's turn has been ended
-//func notifyPlayerWait(gameID int, resp *notifyWaitGameData) {
-    //jsonBytes, _ := json.Marshal(&resp)
-    //store.WaitTurnLM.Publish(strconv.Itoa(gameID), string(jsonBytes))
-//}
-
 // Function to save game data to database
-func saveResultToDatabase(resultObject *database.GamesHistory, isDraw bool, winnerLogin string, timeEnded time.Time) {
-    resultObject.IsDraw = isDraw
-    resultObject.WinnerLoginKey = winnerLogin
-    resultObject.GameEndTimestamp = timeEnded
+func saveResultsToDatabase(session *GameSession, players []string, isDraw bool, winnerLogin string, timeStarted time.Time) {
+    if session.ExtIdentifier == "" {
+        gameHistoryObject := database.GamesHistory{
+            GameStartTimestamp: timeStarted,
+            GameEndTimestamp: time.Now(),
+            IsDraw: isDraw,
+            WinnerLoginKey: winnerLogin,
+        }
 
-    // Ignore errors
-    database.DB.Save(resultObject)
+        // Ignore errors
+        database.DB.Save(&gameHistoryObject)
+
+        // Add new player list objects
+        for _, v := range players {
+            pObject := database.PlayerList{
+                LoginKey: v,
+                GamesHistoryKey: gameHistoryObject.ID,
+            }
+
+            database.DB.Save(&pObject)
+        }
+    }
+}
+
+// Function to close all connections
+func closeConnections(session *GameSession) {
+    for _, v := range session.GetAllPlayers() {
+        v.Connection.CloseConnection("Connection closed")
+        session.deleteConnection(v)
+    }
 }

@@ -22,8 +22,6 @@ func InitializeClientAPIServer(srvWaitor *sync.WaitGroup, srvResult chan<- *http
     router.HandleFunc("/api/user/isadmin", IsAdmin).Methods("GET")
     router.HandleFunc("/api/user/changepass", ChangePassword).Methods("POST")
     router.HandleFunc("/api/user/info", UserInfo).Methods("GET")
-    router.HandleFunc("/api/lobby/list", LobbyList).Methods("GET")
-    router.HandleFunc("/api/lobby/create", LobbyCreate).Methods("POST")
     router.HandleFunc("/api/playerstat", UserStatistic).Methods("GET", "POST")
     router.HandleFunc("/api/motd", GetMotd).Methods("GET")
 
