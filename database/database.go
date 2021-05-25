@@ -51,7 +51,7 @@ func init() {
 
     dbLogger.Println("Database initialized")
 
-    err = DB.AutoMigrate(&User{}, &GamesHistory{})
+    err = DB.AutoMigrate(&User{}, &GamesHistory{}, &PlayerList{}, &DHTHosts{})
 
     if err != nil {
         dbLogger.Fatalln("Error when creating schema: %s\n", err.Error())
