@@ -50,7 +50,6 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 
     // Create new WebsocketConnection
     ws.NewWebsocketConnection(c, websocketReadHandler, wsStore)
-    return
 }
 
 // Handler for websocket requests from peer
@@ -80,6 +79,23 @@ func websocketReadHandler(wc *ws.WebsocketConnection, data []byte) {
         if !verified {
             conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Invalid token"))
             gameApiLogger.Printf("Invalid token passed from %s\n", conn.RemoteAddr())
+            return
+        }
+
+        // Get connection session
+        session, err := auth.SessionStore.GetSession(tokenData.Login)
+        if err != nil {
+            // Session must be in store, throw error
+            conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Session not found for this connection"))
+            return
+        }
+
+        if session.WSConnection.Closed() {
+            session.WSConnection = wc
+        } else {
+            // Connection not closed, can't handle other connection
+            conn.WriteMessage(websocket.TextMessage, u.ErrorJson("User already connected"))
+            wc.CloseConnection("User already connected")
             return
         }
     }

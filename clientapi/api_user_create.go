@@ -1,5 +1,4 @@
 package clientapi
-
 import (
     "net/http"
     "encoding/json"

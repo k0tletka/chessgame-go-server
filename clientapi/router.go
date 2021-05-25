@@ -19,6 +19,7 @@ func InitializeClientAPIServer(srvWaitor *sync.WaitGroup, srvResult chan<- *http
     // Handlers on a variety of controllers
     router.HandleFunc("/api/user/create", CreateLogin).Methods("POST")
     router.HandleFunc("/api/user/login", LoginUsers).Methods("POST")
+    router.HandleFunc("/api/user/disconnect", DisconnectUser).Methods("GET")
     router.HandleFunc("/api/user/isadmin", IsAdmin).Methods("GET")
     router.HandleFunc("/api/user/changepass", ChangePassword).Methods("POST")
     router.HandleFunc("/api/user/info", UserInfo).Methods("GET")

@@ -47,15 +47,19 @@ func (s *SessionStoreType) TerminateSession(login string) error {
         return NoSuchSession
     }
 
+    if conn := s.sessions[login].WSConnection; conn != nil {
+        conn.CloseConnection("Session closed")
+    }
+
     s.sessions[login] = nil
     return nil
 }
 
 // Get session
-func (s *SessionStoreType) GetSession(login string) (SessionInformation, error) {
+func (s *SessionStoreType) GetSession(login string) (*SessionInformation, error) {
     if s.sessions[login] == nil {
-        return SessionInformation{}, NoSuchSession
+        return nil, NoSuchSession
     }
 
-    return *(s.sessions[login]), nil
+    return s.sessions[login], nil
 }

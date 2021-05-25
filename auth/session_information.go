@@ -1,6 +1,8 @@
 package auth
 
 import (
+    ws "GoChessgameServer/websocket"
+
     "crypto/rand"
 )
 
@@ -12,6 +14,9 @@ type SessionInformation struct {
 
     // Administrator status
     IsAdmin bool
+
+    // Websocket connection
+    WSConnection *ws.WebsocketConnection
 }
 
 // Return new session information with generated JWT Token and given endpoint string

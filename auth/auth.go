@@ -27,7 +27,7 @@ func AuthUser(login, password string) bool {
     // Check users in the database
     var user database.User
 
-    if result := database.DB.Find(&user, login); result.Error != nil {
+    if result := database.DB.Where("login = ?", login).First(&user); result.Error != nil {
         if result.Error != gorm.ErrRecordNotFound {
             authLogger.Printf("Error when making query: %s\n", result.Error.Error())
         }
@@ -58,7 +58,7 @@ func AuthUser(login, password string) bool {
 // This function performs registering new users (session for new users also creates)
 func RegisterUser(login, password, email string) bool {
     // Check if user axe exists already
-    result := database.DB.Find(&database.User{}, login)
+    result := database.DB.Where("login = ?", login).First(&database.User{})
 
     if result.Error != nil && result.Error != gorm.ErrRecordNotFound {
         authLogger.Printf("Error when making query: %s\n", result.Error.Error())
@@ -99,7 +99,7 @@ func ChangeUserPassword(login, op, np string) bool {
     // Make request to get
     var user database.User
 
-    if result := database.DB.Find(&user, login); result.Error != nil {
+    if result := database.DB.Where("login = ?", login).First(&user); result.Error != nil {
         if result.Error != gorm.ErrRecordNotFound {
             authLogger.Printf("Error when making query: %s\n", result.Error.Error())
         }

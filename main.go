@@ -18,6 +18,7 @@ import (
     // Servers
     clientAPI "GoChessgameServer/clientapi"
     gameAPI "GoChessgameServer/gameapi"
+    DHTAPI "GoChessgameServer/dht"
 )
 
 var (
@@ -45,12 +46,14 @@ func main() {
 
     // sync.WaitGroup for waiting to start all servers
     srvWaitor := &sync.WaitGroup{}
-    srvWaitor.Add(2) // Client API, Game API
+    srvWaitor.Add(3) // Client API, Game API
 
     // Start servers
     go clientAPI.InitializeClientAPIServer(srvWaitor, serverChan)
 
     go gameAPI.InitializeGameAPIServer(srvWaitor, serverChan)
+
+    go DHTAPI.InitializeDHT(srvWaitor, serverChan)
 
     // Wait for servers to start
     srvWaitor.Wait()

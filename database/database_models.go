@@ -60,3 +60,22 @@ type PlayerList struct {
 func (PlayerList) TableName() string {
     return "player_list"
 }
+
+// Table for storing hosts of server instances, detected via handshaking
+type DHTHosts struct {
+    ServerIdentifier    []byte          `gorm:"primaryKey"`
+    SrvLocalIdentifier  []byte          `gorm:"not null"`
+    IPAddress           string          `gorm:"not null"`
+    Port                uint16          `gorm:"not null"`
+    UseTLS              bool            `gorm:"not null"`
+    LastHandshake       time.Time
+
+    // Gorm specific field
+    CreatedAt           time.Time
+    UpdatedAt           time.Time
+    DeletedAt           gorm.DeletedAt  `gorm:"index"`
+}
+
+func (DHTHosts) TableName() string {
+    return "dht_hosts"
+}

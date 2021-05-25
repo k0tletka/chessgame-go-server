@@ -20,7 +20,7 @@ func UserInfo(w http.ResponseWriter, r *http.Request) {
     // Make database query
     var user database.User
 
-    if err := database.DB.Find(&user, login).Error; err != nil {
+    if err := database.DB.Where("login = ?", login).First(&user).Error; err != nil {
         if err != gorm.ErrRecordNotFound {
             writeError("Connection error")
             w.WriteHeader(http.StatusInternalServerError)
@@ -52,5 +52,5 @@ func UserInfo(w http.ResponseWriter, r *http.Request) {
     w.Header().Add("Content-Type", "application/json")
 
     // Log new user
-    clientApiLogger.Printf("UserInfo: User %s requested his info\n", user)
+    clientApiLogger.Printf("UserInfo: User %s requested his info\n", user.Login)
 }

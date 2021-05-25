@@ -62,8 +62,8 @@ func NewWebsocketConnection(conn *websocket.Conn, readHandler func(*WebsocketCon
         return nil
     })
 
-    go result.ReadGoroutine()
-    go result.PingerGoroutine()
+    go result.readGoroutine()
+    go result.pingerGoroutine()
     return result
 }
 
@@ -90,6 +90,10 @@ func (wc *WebsocketConnection) CloseConnection(data string) {
     wc.closeConnectionForce()
 }
 
+func (wc *WebsocketConnection) Closed() bool {
+    return !wc.openState
+}
+
 func (wc *WebsocketConnection) closeConnectionForce() {
     wc.openStateMutex.Lock()
     defer wc.openStateMutex.Unlock()
@@ -113,7 +117,7 @@ func (wc *WebsocketConnection) closeConnectionForce() {
 }
 
 // Method for handling read messages from connection and calling readHandle function
-func (wc *WebsocketConnection) ReadGoroutine() {
+func (wc *WebsocketConnection) readGoroutine() {
     for {
         mt, message, err := wc.conn.ReadMessage()
 
@@ -130,7 +134,7 @@ func (wc *WebsocketConnection) ReadGoroutine() {
 }
 
 // Ping function that send ping request to peer
-func (wc *WebsocketConnection) PingerGoroutine() {
+func (wc *WebsocketConnection) pingerGoroutine() {
     for {
         if err := wc.conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(pingSendingDuration)); err != nil {
             wc.closeConnectionForce()

@@ -27,11 +27,12 @@ func UserStatistic(w http.ResponseWriter, r *http.Request) {
     var err error
     baseQuery := database.DB.
         Table("users").
-        Joins("JOIN games_history ON games_history.player_one_login = users.login OR games_history.player_two_login = users.login").
+        Joins("JOIN player_list ON player_list.login_key = users.login").
+        Joins("JOIN games_history ON games_history.id = player_list.games_history_key").
         Select(`
             users.login as user,
             count(games_history.id) as games_played,
-            sum(case where games_history.winner_login = users.login then 1 else 0 end) as winned_games
+            sum(case when games_history.winner_login = users.login then 1 else 0 end) as winned_games
         `).
         Group("users.login")
 
