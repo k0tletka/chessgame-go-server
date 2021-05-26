@@ -28,7 +28,7 @@ func (s *SessionStoreType) CreateNewSession(login string, sinfo *SessionInformat
     s.mutex.Lock()
     defer s.mutex.Unlock()
 
-    if _, nok := s.sessions[login]; nok {
+    if _, nok := s.sessions[login]; nok && s.sessions[login] != nil {
         return SessionRegisteredAlready
     }
 

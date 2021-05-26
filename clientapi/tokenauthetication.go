@@ -16,7 +16,7 @@ func TokenChecker(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
         writeError := u.WriteErrorCreator(w)
-        notAuthUris := []string {"/api/user/login", "/api/user/create"}
+        notAuthUris := []string {"/api/user/login", "/api/user/create", "/api/gameapi_endpoint"}
         urlPath := r.URL.Path
 
         // Check URIs, that is not needed in auth

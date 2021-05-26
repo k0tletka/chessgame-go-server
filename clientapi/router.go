@@ -17,6 +17,7 @@ func InitializeClientAPIServer(srvWaitor *sync.WaitGroup, srvResult chan<- *http
     router := mux.NewRouter()
 
     // Handlers on a variety of controllers
+    router.HandleFunc("/api/lobby/list", LobbyList).Methods("GET")
     router.HandleFunc("/api/user/create", CreateLogin).Methods("POST")
     router.HandleFunc("/api/user/login", LoginUsers).Methods("POST")
     router.HandleFunc("/api/user/disconnect", DisconnectUser).Methods("GET")
@@ -25,6 +26,7 @@ func InitializeClientAPIServer(srvWaitor *sync.WaitGroup, srvResult chan<- *http
     router.HandleFunc("/api/user/info", UserInfo).Methods("GET")
     router.HandleFunc("/api/playerstat", UserStatistic).Methods("GET", "POST")
     router.HandleFunc("/api/motd", GetMotd).Methods("GET")
+    router.HandleFunc("/api/gameapi_endpoint", GetGameAPIUri).Methods("GET")
 
     // Middleware for token checking
     router.Use(TokenChecker)

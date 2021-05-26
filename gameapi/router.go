@@ -34,7 +34,7 @@ func InitializeGameAPIServer(srvWaitor *sync.WaitGroup, srvResult chan<- *http.S
         gameApiLogger.Fatalln("Needed config options for TLS is not defined, aborting to start game api server")
     }
 
-    listenaddr, listenport := getListenInformation()
+    listenaddr, listenport := GetListenInformation()
 
     srv := &http.Server{
         Handler: router,
@@ -72,7 +72,7 @@ func checkTLSMandatoryOptions() bool {
 }
 
 // Gets address and port for server API listening
-func getListenInformation() (laddr string, lport uint16) {
+func GetListenInformation() (laddr string, lport uint16) {
     if !c.DecodeMetadata.IsDefined("game_api", "listenaddr") {
         laddr = "127.0.0.1"
     } else {

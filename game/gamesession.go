@@ -1,10 +1,13 @@
 package game
 
 import (
+    "encoding/json"
     "errors"
     "sync"
 
     ws "GoChessgameServer/websocket"
+
+    "github.com/gorilla/websocket"
 )
 
 var (
@@ -147,7 +150,22 @@ func (g *GameSession) setCloseHandler(conn *GameClientConnection) {
 
 
 func (g *GameSession) StartSession() {
-    controlGame(g)
+    // Remind all players that game has started
+    request := struct{
+        GameStarted bool `json:"game_started"`
+    }{
+        GameStarted: true,
+    }
+
+    if data, err := json.Marshal(&request); err != nil {
+        panic(err)
+    } else {
+        for _, c := range g.players {
+            c.Connection.GetConnection().WriteMessage(websocket.TextMessage, data)
+        }
+
+        controlGame(g)
+    }
 }
 
 // This type represents game session list
