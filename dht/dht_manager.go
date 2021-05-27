@@ -57,8 +57,10 @@ func CreateNewDHTManager() *DHTManager {
     }
 
     newManager := &DHTManager {
-        wsConns: &ws.WebsocketStore{},
+        wsConns: ws.NewWebsocketStore(),
         staticPeerConnections: []*StaticPeerConnection{},
+        databasePeerConnections: make(map[string]*ws.WebsocketConnection),
+        readSynchronizationChannels: make(map[*ws.WebsocketConnection]chan *dhtAPIBaseRequest),
         wsDialer: wsDialer,
     }
 
@@ -249,7 +251,7 @@ func (m *DHTManager) startHandshakeProcedure() {
                 conn = v.Connection
             }
 
-            m.sendHandshakeRequest(conn, connectionLimit)
+            m.sendHandshakeRequest(conn, connectionLimit, true, false)
         }
 
         // Enstablish connections with database hosts
@@ -284,7 +286,7 @@ func (m *DHTManager) startHandshakeProcedure() {
                 m.databasePeerConnections[encodedIdentifier] = conn
             }
 
-            m.sendHandshakeRequest(conn, connectionLimit)
+            m.sendHandshakeRequest(conn, connectionLimit, false, v.IsPeerConnsStatic)
         }
 
         // Sleep until next handshake timeout
@@ -292,7 +294,7 @@ func (m *DHTManager) startHandshakeProcedure() {
     }
 }
 
-func (m *DHTManager) sendHandshakeRequest(conn *ws.WebsocketConnection, connectionLimit uint) {
+func (m *DHTManager) sendHandshakeRequest(conn *ws.WebsocketConnection, connectionLimit uint, connectingStatic, isPeerStatic bool) {
     // Get listening port of server api
     _, listenport := u.GetListenInformationServerAPI()
 
@@ -302,11 +304,15 @@ func (m *DHTManager) sendHandshakeRequest(conn *ws.WebsocketConnection, connecti
         ServerAPIPort       uint16  `json:"server_api_port"`
         UseTLS              bool    `json:"use_tls"`
         ConnectionLimit     uint    `json:"connection_limit"`
+        ConnectingStatic    bool    `json:"connecting_static"`
+        IsPeerStatic        bool    `json:"is_peer_static"`
     }{
         ServerIdentifier: m.GetServerIdentifier(),
         ServerAPIPort: listenport,
         UseTLS: c.Conf.DHTApi.UseTLS,
         ConnectionLimit: connectionLimit,
+        ConnectingStatic: connectingStatic,
+        IsPeerStatic: isPeerStatic,
     }
 
     var data []byte

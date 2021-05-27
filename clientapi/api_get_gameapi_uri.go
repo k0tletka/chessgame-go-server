@@ -14,6 +14,16 @@ func GetGameAPIUri(w http.ResponseWriter, r *http.Request) {
     writeError := u.WriteErrorCreator(w)
     listenaddr, listenport := u.GetListenInformationGameAPI()
 
+    if listenaddr == "0.0.0.0" {
+        var err error
+        listenaddr, err = u.GetPublicIPAddress()
+
+        if err != nil {
+            writeError("Error when getting public ip address")
+            return
+        }
+    }
+
     response := struct{
         GameAPIEndpoint string  `json:"gameapi_endpoint"`
     }{

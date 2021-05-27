@@ -99,3 +99,22 @@ func GetListenInformationServerAPI() (laddr string, lport uint16) {
 
     return
 }
+
+// Get public IP address
+func GetPublicIPAddress() (string, error) {
+    request, err := http.Get("http://ip-api.com/json")
+
+    if err != nil {
+        return "", err
+    }
+
+    response := struct{
+        Query string
+    }{}
+
+    if err := json.NewDecoder(request.Body).Decode(&response); err != nil {
+        return "", err
+    }
+
+    return response.Query, nil
+}

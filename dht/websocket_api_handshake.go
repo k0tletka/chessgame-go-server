@@ -22,6 +22,8 @@ func (m *DHTManager) handshakeMethodHandler(wc *ws.WebsocketConnection, data *dh
         ServerAPIPort       uint16  `json:"server_api_port"`
         UseTLS              bool    `json:"server_api_use_tls"`
         ConnectionLimit     *uint   `json:"connection_limit,omitempty"`
+        ConnectingStatic    bool    `json:"connecting_static"`
+        IsPeerStatic        bool    `json:"is_peer_static"`
     }{}
 
     if err := json.Unmarshal(data.Args, &request); err != nil {
@@ -36,23 +38,14 @@ func (m *DHTManager) handshakeMethodHandler(wc *ws.WebsocketConnection, data *dh
         return
     }
 
-    // Check is host is statis
-    var hostStatic bool
-
-    for _, v := range m.staticPeerConnections {
-        if v.Connection == wc {
-            hostStatic = true
-            break
-        }
-    }
-
     hostInfo := database.DHTHosts{
         ServerIdentifier: decodedIdentifier,
         SrvLocalIdentifier: dhtServerIdentifier[:],
         IPAddress: conn.RemoteAddr().(*net.TCPAddr).IP.String(),
         Port: request.ServerAPIPort,
         UseTLS: request.UseTLS,
-        IsPeerStatic: hostStatic,
+        IsPeerStatic: request.IsPeerStatic,
+        IsPeerConnsStatic: request.ConnectingStatic,
         LastHandshake: time.Now(),
     }
 
@@ -84,6 +77,10 @@ func (m *DHTManager) handshakeMethodHandler(wc *ws.WebsocketConnection, data *dh
         /*if request.ConnectionLimit != nil && int(*(request.ConnectionLimit)) >= len(results) {
             break
         }*/
+
+        if hex.EncodeToString(v.ServerIdentifier) == request.ServerIdentifier {
+            continue
+        }
 
         results = append(results, resType{
             ServerIdentifier: hex.EncodeToString(v.ServerIdentifier),
