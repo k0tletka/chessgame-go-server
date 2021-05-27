@@ -14,6 +14,7 @@ import (
     c "GoChessgameServer/conf"
     u "GoChessgameServer/util"
     "GoChessgameServer/database"
+    "GoChessgameServer/auth"
 
     "github.com/gorilla/websocket"
 )
@@ -21,6 +22,7 @@ import (
 var (
     // Errors
     HostNotFound = errors.New("Host requested by given identifier not found")
+    TimeoutError = errors.New("Connection has timed out")
 )
 
 // This type represent static peer from configuration
@@ -76,14 +78,7 @@ func (m *DHTManager) GetServerIdentifier() string {
 
 // Function to get information about host by its server identifier
 func (m *DHTManager) GetHostInfoByServerIdentifier(serverIdentifier string) (*DHTHostInformation, error) {
-    var result *DHTHostInformation
-
-    // Loop throught connected instances and server identifiers and get information
-    for k, v := range m.databasePeerConnections {
-        if k != serverIdentifier {
-            continue
-        }
-
+    if v, ok := m.databasePeerConnections[serverIdentifier]; ok && v != nil && !v.Closed() {
         // Send request to get information about host
         baseRequest := dhtAPIBaseRequest{
             MethodName: "hostinfo",
@@ -101,26 +96,104 @@ func (m *DHTManager) GetHostInfoByServerIdentifier(serverIdentifier string) (*DH
         m.readSynchronizationChannels[v] = readChan
 
         v.GetConnection().WriteMessage(websocket.TextMessage, data)
-        response := <-readChan
 
-        close(readChan)
+        // Wait for result with timeout
+        timer := time.NewTimer(5 * time.Second)
 
-        result := &DHTHostInformation{}
+        select {
+        case response := <-readChan:
+            delete(m.readSynchronizationChannels, v)
+            close(readChan)
 
-        // Parse response
-        if err = json.Unmarshal(response.Args, result); err != nil {
-            return nil, err
+            result := &DHTHostInformation{}
+
+            // Parse response
+            if err = json.Unmarshal(response.Args, result); err != nil {
+                return nil, err
+            }
+
+            result.ClientAPIIPAddress = v.GetConnection().RemoteAddr().(*net.TCPAddr).IP.String()
+            result.GameAPIIPAddress = v.GetConnection().RemoteAddr().(*net.TCPAddr).IP.String()
+
+            return result, nil
+        case <-timer.C:
+            delete(m.readSynchronizationChannels, v)
+            close(readChan)
+
+            return nil, TimeoutError
         }
 
-        result.ClientAPIIPAddress = v.GetConnection().RemoteAddr().(*net.TCPAddr).IP.String()
-        result.GameAPIIPAddress = v.GetConnection().RemoteAddr().(*net.TCPAddr).IP.String()
     }
 
-    if result == nil {
-        return nil, HostNotFound
+    return nil, HostNotFound
+}
+
+// Method for verifying server token
+func (m *DHTManager) VerifyServerToken(tokenString, serverIdentifier string) (*auth.JWTUserClaim, bool, error) {
+    if v, ok := m.databasePeerConnections[serverIdentifier]; ok && v != nil && !v.Closed() {
+        // Send request to verify token
+        var data []byte
+        var err error
+
+        request := struct{
+            TokenToVerify   string  `json:"token"`
+        }{
+            TokenToVerify: tokenString,
+        }
+
+        if data, err = json.Marshal(&request); err != nil {
+            return nil, false, err
+        }
+
+        baseRequest := dhtAPIBaseRequest{
+            MethodName: "verifytoken",
+            Args: data,
+        }
+
+        if data, err = json.Marshal(&baseRequest); err != nil {
+            return nil, false, err
+        }
+
+        // Init channel for result awaiting
+        readChan := make(chan *dhtAPIBaseRequest, 1)
+        m.readSynchronizationChannels[v] = readChan
+
+        v.GetConnection().WriteMessage(websocket.TextMessage, data)
+
+        // Wait for result with timeout
+        timer := time.NewTimer(5 * time.Second)
+
+        select {
+        case response := <-readChan:
+            delete(m.readSynchronizationChannels, v)
+            close(readChan)
+
+            result := struct{
+                Verified    bool            `json:"verified"`
+                TokenData   json.RawMessage `json:"token_data"`
+            }{}
+
+            // Parse response
+            if err = json.Unmarshal(response.Args, &result); err != nil {
+                return nil, false, err
+            }
+
+            tokenData := &auth.JWTUserClaim{}
+
+            if err = json.Unmarshal(result.TokenData, &tokenData); err != nil {
+                return nil, false, err
+            }
+
+            return tokenData, result.Verified, nil
+        case <-timer.C:
+            delete(m.readSynchronizationChannels, v)
+            close(readChan)
+
+            return nil, false, TimeoutError
+        }
     }
 
-    return result, nil
+    return nil, false, HostNotFound
 }
 
 // Private methods

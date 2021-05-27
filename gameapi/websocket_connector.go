@@ -8,6 +8,7 @@ import (
     "GoChessgameServer/auth"
     ws "GoChessgameServer/websocket"
     u "GoChessgameServer/util"
+    "GoChessgameServer/dht"
 
     "github.com/gorilla/websocket"
 )
@@ -65,9 +66,26 @@ func websocketReadHandler(wc *ws.WebsocketConnection, data []byte) {
     var tokenData *auth.JWTUserClaim
 
     if req.FromExternalInstance {
-        // TODO: Make token checking for external instances
-        conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Not implemented"))
-        return
+        if req.ServerInstanceIdentify == nil {
+            conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Server instance identity can't be empty"))
+            return
+        }
+
+        // Send request to verify server token
+        var verified bool
+        var err error
+
+        tokenData, verified, err = dht.DHTMgr.VerifyServerToken(req.Token, *req.ServerInstanceIdentify)
+
+        if err != nil {
+            conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Can't verify server token: " + err.Error()))
+            return
+        }
+
+        if !verified {
+            conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Invalid token"))
+            return
+        }
     } else {
         // Verify jwt token
         var verified bool

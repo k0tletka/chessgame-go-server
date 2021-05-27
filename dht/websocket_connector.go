@@ -64,6 +64,8 @@ func (m *DHTManager) connectionReadHandler(wc *ws.WebsocketConnection, data []by
         "handshake_response": m.handshakeResponseMethodHandler,
         "hostinfo": m.hostinfoMethodHandler,
         "hostinfo_response": m.hostinfoResponseMethodHandler,
+        "tokenverify": m.tokenverifyMethodHandler,
+        "tokenverify_response": m.tokenverifyResponseMethodHandler,
     }
 
     if handler, ok := routingPaths[request.MethodName]; ok {

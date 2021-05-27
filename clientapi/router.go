@@ -28,6 +28,8 @@ func InitializeClientAPIServer(srvWaitor *sync.WaitGroup, srvResult chan<- *http
     router.HandleFunc("/api/playerstat", UserStatistic).Methods("GET", "POST")
     router.HandleFunc("/api/motd", GetMotd).Methods("GET")
     router.HandleFunc("/api/gameapi_endpoint", GetGameAPIUri).Methods("GET")
+    router.HandleFunc("/api/dht/server_identifier", DhtServerIdentifier).Methods("GET")
+    router.HandleFunc("/api/dht/hostinfo", DhtHostInfo).Methods("POST")
 
     // Middleware for token checking
     router.Use(TokenChecker)

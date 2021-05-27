@@ -80,9 +80,10 @@ func (m *DHTManager) handshakeMethodHandler(wc *ws.WebsocketConnection, data *dh
     database.DB.Find(&serverList)
 
     for _, v := range serverList {
-        if request.ConnectionLimit != nil && int(*(request.ConnectionLimit)) >= len(results) {
+        // Currenly, all instances stores maximum public instances in their databases
+        /*if request.ConnectionLimit != nil && int(*(request.ConnectionLimit)) >= len(results) {
             break
-        }
+        }*/
 
         results = append(results, resType{
             ServerIdentifier: hex.EncodeToString(v.ServerIdentifier),
