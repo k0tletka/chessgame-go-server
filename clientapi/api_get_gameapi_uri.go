@@ -7,13 +7,12 @@ import (
 
     u "GoChessgameServer/util"
     c "GoChessgameServer/conf"
-    gameAPI "GoChessgameServer/gameapi"
 )
 
 func GetGameAPIUri(w http.ResponseWriter, r *http.Request) {
 
     writeError := u.WriteErrorCreator(w)
-    listenaddr, listenport := gameAPI.GetListenInformation()
+    listenaddr, listenport := u.GetListenInformationGameAPI()
 
     response := struct{
         GameAPIEndpoint string  `json:"gameapi_endpoint"`

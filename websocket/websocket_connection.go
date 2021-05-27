@@ -33,9 +33,6 @@ type WebsocketConnection struct {
     // List of handler on connection close
     connectionCloseHandlersMutex *sync.Mutex
     connectionCloseHandlers []func(*WebsocketConnection)
-
-    // Channel for notifying that connection are closed
-    ConnectionClosed chan bool
 }
 
 // Function to create new websocket connection
@@ -51,7 +48,6 @@ func NewWebsocketConnection(conn *websocket.Conn, readHandler func(*WebsocketCon
         readHandlerFunction: readHandler,
         connectionCloseHandlersMutex: &sync.Mutex{},
         connectionCloseHandlers: []func(*WebsocketConnection){},
-        ConnectionClosed: make(chan bool, 1),
     }
 
     store.InsertConnection(result)
@@ -109,8 +105,6 @@ func (wc *WebsocketConnection) closeConnectionForce() {
         for _, handler := range wc.connectionCloseHandlers {
             handler(wc)
         }
-
-        wc.ConnectionClosed <- true
 
         wc.openState = false
     }

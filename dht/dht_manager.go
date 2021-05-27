@@ -2,17 +2,25 @@ package dht
 
 import (
     "net/http"
+    "net"
     "fmt"
     "context"
     "time"
     "encoding/json"
     "encoding/hex"
+    "errors"
 
     ws "GoChessgameServer/websocket"
     c "GoChessgameServer/conf"
+    u "GoChessgameServer/util"
     "GoChessgameServer/database"
 
     "github.com/gorilla/websocket"
+)
+
+var (
+    // Errors
+    HostNotFound = errors.New("Host requested by given identifier not found")
 )
 
 // This type represent static peer from configuration
@@ -66,6 +74,56 @@ func (m *DHTManager) GetServerIdentifier() string {
     return hex.EncodeToString(dhtServerIdentifier[:])
 }
 
+// Function to get information about host by its server identifier
+func (m *DHTManager) GetHostInfoByServerIdentifier(serverIdentifier string) (*DHTHostInformation, error) {
+    var result *DHTHostInformation
+
+    // Loop throught connected instances and server identifiers and get information
+    for k, v := range m.databasePeerConnections {
+        if k != serverIdentifier {
+            continue
+        }
+
+        // Send request to get information about host
+        baseRequest := dhtAPIBaseRequest{
+            MethodName: "hostinfo",
+        }
+
+        var data []byte
+        var err error
+
+        if data, err = json.Marshal(&baseRequest); err != nil {
+            return nil, err
+        }
+
+        // Init channel for result awaiting
+        readChan := make(chan *dhtAPIBaseRequest, 1)
+        m.readSynchronizationChannels[v] = readChan
+
+        v.GetConnection().WriteMessage(websocket.TextMessage, data)
+        response := <-readChan
+
+        close(readChan)
+
+        result := &DHTHostInformation{}
+
+        // Parse response
+        if err = json.Unmarshal(response.Args, result); err != nil {
+            return nil, err
+        }
+
+        result.ClientAPIIPAddress = v.GetConnection().RemoteAddr().(*net.TCPAddr).IP.String()
+        result.GameAPIIPAddress = v.GetConnection().RemoteAddr().(*net.TCPAddr).IP.String()
+    }
+
+    if result == nil {
+        return nil, HostNotFound
+    }
+
+    return result, nil
+}
+
+// Private methods
 func (m *DHTManager) fillStaticPeerConnections() {
     for _, v := range c.Conf.StaticPeers {
         m.staticPeerConnections = append(m.staticPeerConnections, &StaticPeerConnection{
@@ -163,7 +221,7 @@ func (m *DHTManager) startHandshakeProcedure() {
 
 func (m *DHTManager) sendHandshakeRequest(conn *ws.WebsocketConnection, connectionLimit uint) {
     // Get listening port of server api
-    _, listenport := getListenInformation()
+    _, listenport := u.GetListenInformationServerAPI()
 
     // Connection exist, so just send handshake message
     request := struct{

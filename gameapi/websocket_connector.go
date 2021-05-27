@@ -80,7 +80,7 @@ func websocketReadHandler(wc *ws.WebsocketConnection, data []byte) {
         }
 
         // Get connection session
-        session, err := auth.SessionStore.GetSession(tokenData.Login)
+        /*session, err := auth.SessionStore.GetSession(tokenData.Login)
         if err != nil {
             // Session must be in store, throw error
             conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Session not found for this connection"))
@@ -94,7 +94,7 @@ func websocketReadHandler(wc *ws.WebsocketConnection, data []byte) {
             conn.WriteMessage(websocket.TextMessage, u.ErrorJson("User already connected"))
             wc.CloseConnection("User already connected")
             return
-        }
+        }*/
     }
 
     // Perform request routing based on request method

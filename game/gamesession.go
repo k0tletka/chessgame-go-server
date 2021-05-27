@@ -129,7 +129,11 @@ func (g *GameSession) deleteConnectionFromTurner(parent *GameTurner, turner *Gam
     }
 
     if turner.GameConnection == conn {
-        if parent == nil { g.PlayerTurner = turner.Next; }
+        if parent == nil {
+            g.PlayerTurner = turner.Next
+            return
+        }
+
         parent.Next = turner.Next
     } else {
         g.deleteConnectionFromTurner(turner, turner.Next, conn)

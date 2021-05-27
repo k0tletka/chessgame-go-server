@@ -62,6 +62,8 @@ func (m *DHTManager) connectionReadHandler(wc *ws.WebsocketConnection, data []by
     routingPaths := map[string]func(*ws.WebsocketConnection, *dhtAPIBaseRequest){
         "handshake": m.handshakeMethodHandler,
         "handshake_response": m.handshakeResponseMethodHandler,
+        "hostinfo": m.hostinfoMethodHandler,
+        "hostinfo_response": m.hostinfoResponseMethodHandler,
     }
 
     if handler, ok := routingPaths[request.MethodName]; ok {

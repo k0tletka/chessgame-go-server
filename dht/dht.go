@@ -28,6 +28,14 @@ func init() {
     dhtLogger = logger.AddNewLogger("DHTNetwork", os.Stdout, log.LstdFlags | log.Lmsgprefix)
 }
 
+// Type that represents DHT host information
+type DHTHostInformation struct {
+    ClientAPIIPAddress  string  `json:"client_api_address"`
+    ClientAPIPort       uint16  `json:"client_api_port"`
+    GameAPIIPAddress    string  `json:"game_api_address"`
+    GameAPIPort         uint16  `json:"game_api_port"`
+}
+
 // This function called directly from main.go and performs
 // server raising and hanshaking with static peers
 func InitializeDHT(srvWaitor *sync.WaitGroup, serverChan chan<- *http.Server) {

@@ -54,7 +54,7 @@ func controlGame(gameSession *GameSession) {
     for {
         // Get player that must make next turn
         if performNextTurn {
-            if turner == nil {
+            if turner == nil || turner.Next == nil {
                 turner = gameSession.PlayerTurner
             } else {
                 turner = turner.Next
@@ -74,7 +74,18 @@ func controlGame(gameSession *GameSession) {
             saveResultsToDatabase(gameSession, players, true, "", gameStartedTimestamp)
             closeConnections(gameSession)
             return
-        case turn := <-conn.ReadChannel:
+        case turn, ok := <-conn.ReadChannel:
+            if !ok {
+                // Check that at least two connections left. If amount of connections
+                // is lower that two, chose winner and close session
+                if aPl := gameSession.GetAllPlayers(); len(aPl) == 1 {
+                    saveResultsToDatabase(gameSession, players, false, aPl[0].Login, gameStartedTimestamp)
+                    closeConnections(gameSession)
+                }
+
+                return
+            }
+
             if turn.Surrender {
                 // Close connection for client that surrended
                 conn.Connection.CloseConnection("You have surrended. Game ended")
@@ -161,20 +172,7 @@ func controlGame(gameSession *GameSession) {
             whiteTurn = !whiteTurn
 
             broadcastJSONMessages(&turn, conn, gameSession)
-        case <-conn.Connection.ConnectionClosed:
-            gameSession.deleteConnection(conn)
-
-            // Check that at least two connections left. If amount of connections
-            // is lower that two, chose winner and close session
-            if aPl := gameSession.GetAllPlayers(); len(aPl) == 1 {
-                saveResultsToDatabase(gameSession, players, false, aPl[0].Login, gameStartedTimestamp)
-                closeConnections(gameSession)
-                return
-            } else if len(aPl) < 1 {
-                return
-            }
         }
-
     }
 }
 
@@ -321,7 +319,7 @@ func checkWhiteWin(table *ChessTable) bool {
 
 // Function to save game data to database
 func saveResultsToDatabase(session *GameSession, players []string, isDraw bool, winnerLogin string, timeStarted time.Time) {
-    if session.ExposeToNetwork {
+    if !session.ExposeToNetwork {
         gameHistoryObject := database.GamesHistory{
             GameStartTimestamp: timeStarted,
             GameEndTimestamp: time.Now(),
@@ -360,9 +358,7 @@ func broadcastJSONMessages(message interface{}, currConnection *GameClientConnec
     }
 
     for _, v := range session.GetAllPlayers() {
-        if v != currConnection {
-            v.Connection.GetConnection().WriteMessage(websocket.TextMessage, data)
-        }
+        v.Connection.GetConnection().WriteMessage(websocket.TextMessage, data)
     }
 }
 

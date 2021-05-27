@@ -7,6 +7,7 @@ import (
     "fmt"
 
     c "GoChessgameServer/conf"
+    u "GoChessgameServer/util"
     ws "GoChessgameServer/websocket"
 
     "github.com/gorilla/mux"
@@ -34,7 +35,7 @@ func InitializeGameAPIServer(srvWaitor *sync.WaitGroup, srvResult chan<- *http.S
         gameApiLogger.Fatalln("Needed config options for TLS is not defined, aborting to start game api server")
     }
 
-    listenaddr, listenport := GetListenInformation()
+    listenaddr, listenport := u.GetListenInformationGameAPI()
 
     srv := &http.Server{
         Handler: router,
@@ -69,27 +70,6 @@ func checkTLSMandatoryOptions() bool {
 
     return c.DecodeMetadata.IsDefined("game_api", "cert_file") &&
         c.DecodeMetadata.IsDefined("game_api", "key_file")
-}
-
-// Gets address and port for server API listening
-func GetListenInformation() (laddr string, lport uint16) {
-    if !c.DecodeMetadata.IsDefined("game_api", "listenaddr") {
-        laddr = "127.0.0.1"
-    } else {
-        laddr = c.Conf.GAPI.ListenAddr
-    }
-
-    if !c.DecodeMetadata.IsDefined("game_api", "listenport") {
-        if c.Conf.GAPI.UseTLS {
-            lport = 4443
-        } else {
-            lport = 800
-        }
-    } else {
-        lport = c.Conf.GAPI.ListenPort
-    }
-
-    return
 }
 
 // Shutdown HTTP server handler

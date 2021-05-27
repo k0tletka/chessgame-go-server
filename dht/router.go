@@ -7,6 +7,7 @@ import (
     "time"
 
     c "GoChessgameServer/conf"
+    u "GoChessgameServer/util"
 
     "github.com/gorilla/mux"
 )
@@ -27,7 +28,7 @@ func InitializeDHTAPIServer(srvWaitor *sync.WaitGroup, srvResult chan<- *http.Se
         dhtLogger.Fatalln("Needed config options for TLS is not defined, aborting to start DHT api server")
     }
 
-    listenaddr, listenport := getListenInformation()
+    listenaddr, listenport := u.GetListenInformationServerAPI()
 
     srv := &http.Server{
         Handler: router,
@@ -62,27 +63,6 @@ func checkTLSMandatoryOptions() bool {
 
     return c.DecodeMetadata.IsDefined("dht_api", "cert_file") &&
         c.DecodeMetadata.IsDefined("dht_api", "key_file")
-}
-
-// Gets address and port for server API listening
-func getListenInformation() (laddr string, lport uint16) {
-    if !c.DecodeMetadata.IsDefined("dht_api", "listenaddr") {
-        laddr = "127.0.0.1"
-    } else {
-        laddr = c.Conf.DHTApi.ListenAddr
-    }
-
-    if !c.DecodeMetadata.IsDefined("dht_api", "listenport") {
-        if c.Conf.DHTApi.UseTLS {
-            lport = 4444
-        } else {
-            lport = 801
-        }
-    } else {
-        lport = c.Conf.DHTApi.ListenPort
-    }
-
-    return
 }
 
 // Shutdown HTTP server handler

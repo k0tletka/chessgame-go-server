@@ -3,6 +3,8 @@ package util
 import (
     "encoding/json"
     "net/http"
+
+    c "GoChessgameServer/conf"
 )
 
 // Utility functions
@@ -35,4 +37,65 @@ func WriteErrorCreator(w http.ResponseWriter) func(string) {
 func Abs(n int) int {
     y := n >> 31
     return (y ^ n) - y
+}
+
+// Function to get default listening port and addresses
+func GetListenInformationClientAPI() (laddr string, lport uint16) {
+    if !c.DecodeMetadata.IsDefined("client_api", "listenaddr") {
+        laddr = "127.0.0.1"
+    } else {
+        laddr = c.Conf.CAPI.ListenAddr
+    }
+
+    if !c.DecodeMetadata.IsDefined("client_api", "listenport") {
+        if c.Conf.CAPI.UseTLS {
+            lport = 443
+        } else {
+            lport = 80
+        }
+    } else {
+        lport = c.Conf.CAPI.ListenPort
+    }
+
+    return
+}
+
+func GetListenInformationGameAPI() (laddr string, lport uint16) {
+    if !c.DecodeMetadata.IsDefined("game_api", "listenaddr") {
+        laddr = "127.0.0.1"
+    } else {
+        laddr = c.Conf.GAPI.ListenAddr
+    }
+
+    if !c.DecodeMetadata.IsDefined("game_api", "listenport") {
+        if c.Conf.GAPI.UseTLS {
+            lport = 4443
+        } else {
+            lport = 800
+        }
+    } else {
+        lport = c.Conf.GAPI.ListenPort
+    }
+
+    return
+}
+
+func GetListenInformationServerAPI() (laddr string, lport uint16) {
+    if !c.DecodeMetadata.IsDefined("dht_api", "listenaddr") {
+        laddr = "127.0.0.1"
+    } else {
+        laddr = c.Conf.DHTApi.ListenAddr
+    }
+
+    if !c.DecodeMetadata.IsDefined("dht_api", "listenport") {
+        if c.Conf.DHTApi.UseTLS {
+            lport = 4444
+        } else {
+            lport = 801
+        }
+    } else {
+        lport = c.Conf.DHTApi.ListenPort
+    }
+
+    return
 }
