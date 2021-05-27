@@ -52,6 +52,7 @@ type DHTAPI struct {
     KeyFile             string      `toml:"key_file"`
     HandshakePeriod     uint        `toml:"handshake_period"`
     PeerConnTimeout     uint        `toml:"peer_connection_timeout"`
+    ConnectionsLimit    uint        `toml:"connections_limit"`
 }
 
 type SPeer struct {

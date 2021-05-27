@@ -12,7 +12,7 @@ import (
 
 // This type represents json model for each turn, that clients making
 type Turn struct {
-    GameID      int     `json:"game_id"`
+    GameID      int     `json:"id"`
     Login       string  `json:"login"`
     FigposX     int     `json:"figposx"`
     FigposY     int     `json:"figposy"`
@@ -321,7 +321,7 @@ func checkWhiteWin(table *ChessTable) bool {
 
 // Function to save game data to database
 func saveResultsToDatabase(session *GameSession, players []string, isDraw bool, winnerLogin string, timeStarted time.Time) {
-    if session.ExtIdentifier == "" {
+    if session.ExposeToNetwork {
         gameHistoryObject := database.GamesHistory{
             GameStartTimestamp: timeStarted,
             GameEndTimestamp: time.Now(),

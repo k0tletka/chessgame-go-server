@@ -68,6 +68,7 @@ type DHTHosts struct {
     IPAddress           string          `gorm:"not null"`
     Port                uint16          `gorm:"not null"`
     UseTLS              bool            `gorm:"not null"`
+    IsPeerStatic        bool            `gorm:"not null"`
     LastHandshake       time.Time
 
     // Gorm specific field

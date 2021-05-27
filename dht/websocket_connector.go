@@ -35,11 +35,11 @@ func (m *DHTManager) websocketHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     // Create new websocket connection
-    ws.NewWebsocketConnection(c, m.connectionServerReadHandler, m.WsServerConns)
+    ws.NewWebsocketConnection(c, m.connectionReadHandler, m.wsConns)
 }
 
 // Main handler for websocker requests
-func (m *DHTManager) connectionServerReadHandler(wc *ws.WebsocketConnection, data []byte) {
+func (m *DHTManager) connectionReadHandler(wc *ws.WebsocketConnection, data []byte) {
     conn := wc.GetConnection()
     request := dhtAPIBaseRequest{}
 
@@ -59,12 +59,13 @@ func (m *DHTManager) connectionServerReadHandler(wc *ws.WebsocketConnection, dat
     }
 
     // Route requests
-    routingPaths := map[string]func(*ws.WebsocketConnection, []byte){
-        "handshake": m.handshakeMethodServerHandler,
+    routingPaths := map[string]func(*ws.WebsocketConnection, *dhtAPIBaseRequest){
+        "handshake": m.handshakeMethodHandler,
+        "handshake_response": m.handshakeResponseMethodHandler,
     }
 
     if handler, ok := routingPaths[request.MethodName]; ok {
-        handler(wc, request.Args)
+        handler(wc, &request)
     } else {
         conn.WriteMessage(websocket.TextMessage, u.ErrorJson("There is no handler for provided method"))
     }

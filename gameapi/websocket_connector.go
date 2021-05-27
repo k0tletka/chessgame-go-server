@@ -20,10 +20,7 @@ type WebsocketRequest struct {
     // This field means, that message has came from client of another instance,
     // and we must verify its token by sending request to appropriate instance.
     FromExternalInstance    bool            `json:"from_external_instance"`
-
-    // Parameters for "another" instance
-    InstanceIPAddress       *string         `json:"instance_serverapi_address,omitempty"`
-    InstancePort            *uint16         `json:"instance_serverapi_port,omitempty"`
+    ServerInstanceIdentify  *string         `json:"server_instance_identify,omitempty"`
 
     // Arguments that passed to method handler function.
     // Content depends on method handler's needs.
@@ -90,7 +87,7 @@ func websocketReadHandler(wc *ws.WebsocketConnection, data []byte) {
             return
         }
 
-        if session.WSConnection.Closed() {
+        if session.WSConnection == nil || session.WSConnection.Closed() {
             session.WSConnection = wc
         } else {
             // Connection not closed, can't handle other connection

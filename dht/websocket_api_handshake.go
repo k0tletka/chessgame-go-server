@@ -13,7 +13,7 @@ import (
     "github.com/gorilla/websocket"
 )
 
-func (m *DHTManager) handshakeMethodServerHandler(wc *ws.WebsocketConnection, data []byte) {
+func (m *DHTManager) handshakeMethodHandler(wc *ws.WebsocketConnection, data *dhtAPIBaseRequest) {
     conn := wc.GetConnection()
 
     // Get server request identifier
@@ -24,7 +24,7 @@ func (m *DHTManager) handshakeMethodServerHandler(wc *ws.WebsocketConnection, da
         ConnectionLimit     *uint   `json:"connection_limit,omitempty"`
     }{}
 
-    if err := json.Unmarshal(data, &request); err != nil {
+    if err := json.Unmarshal(data.Args, &request); err != nil {
         conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Invalid request"))
         return
     }
@@ -36,21 +36,38 @@ func (m *DHTManager) handshakeMethodServerHandler(wc *ws.WebsocketConnection, da
         return
     }
 
+    // Check is host is statis
+    var hostStatic bool
+
+    for _, v := range m.staticPeerConnections {
+        if v.Connection == wc {
+            hostStatic = true
+            break
+        }
+    }
+
     hostInfo := database.DHTHosts{
         ServerIdentifier: decodedIdentifier,
         SrvLocalIdentifier: dhtServerIdentifier[:],
         IPAddress: conn.RemoteAddr().(*net.TCPAddr).IP.String(),
         Port: request.ServerAPIPort,
         UseTLS: request.UseTLS,
+        IsPeerStatic: hostStatic,
         LastHandshake: time.Now(),
     }
 
     database.DB.Save(&hostInfo)
 
+    // Add to handshake map to send handshake requests later
+    if _, ok := m.databasePeerConnections[request.ServerIdentifier]; !ok {
+        m.databasePeerConnections[request.ServerIdentifier] = wc
+    }
+
     // Results to requester
     type resType struct {
         ServerIdentifier    string  `json:"server_identifier"`
         ServerAPIPort       uint16  `json:"server_api_port"`
+        ServerIPAddress     string  `json:"server_api_ip_address"`
         UseTLS              bool    `json:"server_api_use_tls"`
     }
 
@@ -70,6 +87,7 @@ func (m *DHTManager) handshakeMethodServerHandler(wc *ws.WebsocketConnection, da
         results = append(results, resType{
             ServerIdentifier: hex.EncodeToString(v.ServerIdentifier),
             ServerAPIPort: v.Port,
+            ServerIPAddress: v.IPAddress,
             UseTLS: v.UseTLS,
         })
     }
@@ -83,7 +101,7 @@ func (m *DHTManager) handshakeMethodServerHandler(wc *ws.WebsocketConnection, da
 
     // Send result back to client
     response := dhtAPIBaseRequest{
-        MethodName: "handshake",
+        MethodName: "handshake_response",
         Args: resData,
     }
 
@@ -92,5 +110,5 @@ func (m *DHTManager) handshakeMethodServerHandler(wc *ws.WebsocketConnection, da
         return
     }
 
-    conn.WriteMessage(websocket.TextMessage, data)
+    conn.WriteMessage(websocket.TextMessage, resData)
 }

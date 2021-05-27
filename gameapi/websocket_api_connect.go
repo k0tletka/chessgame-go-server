@@ -18,7 +18,7 @@ func WebsocketAPIConnectHandle(wc *ws.WebsocketConnection, data *WebsocketReques
     conn := wc.GetConnection()
 
     request := struct{
-        GameID   int  `json:"game_id"`
+        GameID   int  `json:"id"`
     }{}
 
     if err := json.Unmarshal(data.Args, &request); err != nil {

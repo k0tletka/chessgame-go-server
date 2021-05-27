@@ -16,7 +16,7 @@ func WebsocketAPICreateHandle(wc *ws.WebsocketConnection, data *WebsocketRequest
     conn := wc.GetConnection()
 
     request := struct{
-        GameTitle   string  `json:"game_title"`
+        GameTitle   string  `json:"title"`
     }{}
 
     if err := json.Unmarshal(data.Args, &request); err != nil {

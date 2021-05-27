@@ -12,6 +12,9 @@ type SessionInformation struct {
     // more easily administrate current sessions
     JWTKey []byte
 
+    // JWT key used to verify identify on another server
+    ServerJWTKey []byte
+
     // Administrator status
     IsAdmin bool
 
@@ -21,6 +24,11 @@ type SessionInformation struct {
 
 // Return new session information with generated JWT Token and given endpoint string
 func (s *SessionInformation) GenerateKey() {
+    s.JWTKey = generateNewKey()
+    s.ServerJWTKey = generateNewKey()
+}
+
+func generateNewKey() []byte {
     keyBuffer := make([]byte, 256, 256)
     n, err := rand.Read(keyBuffer)
 
@@ -31,5 +39,5 @@ func (s *SessionInformation) GenerateKey() {
         }
     }
 
-    s.JWTKey = keyBuffer
+    return keyBuffer
 }

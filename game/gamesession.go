@@ -6,6 +6,7 @@ import (
     "sync"
 
     ws "GoChessgameServer/websocket"
+    "GoChessgameServer/dht"
 
     "github.com/gorilla/websocket"
 )
@@ -48,8 +49,9 @@ type GameSession struct {
     GameTitle           string
     PlayersMax          int
 
-    // External instance identifier
-    ExtIdentifier       string
+    // Server instance identifier
+    ServerIdentifier    string
+    ExposeToNetwork     bool
 
     PlayerTurner        *GameTurner
     playersMutex        *sync.RWMutex
@@ -152,9 +154,14 @@ func (g *GameSession) setCloseHandler(conn *GameClientConnection) {
 func (g *GameSession) StartSession() {
     // Remind all players that game has started
     request := struct{
-        GameStarted bool `json:"game_started"`
+        GameStarted bool        `json:"game_started"`
+        Players     []string    `json:"players"`
     }{
         GameStarted: true,
+    }
+
+    for _, c := range g.players {
+        request.Players = append(request.Players, c.Login)
     }
 
     if data, err := json.Marshal(&request); err != nil {
@@ -196,7 +203,8 @@ func (g *GameSessionList) RegisterNewGameSession(gameTitle string, userInfo *Gam
         GameStarted: false,
         GameTitle: gameTitle,
         PlayersMax: playersMax,
-        // TODO: Make registering external identifier for DHT-network
+        ServerIdentifier: dht.DHTMgr.GetServerIdentifier(),
+        ExposeToNetwork: false,
         PlayerTurner: nil,
         playersMutex: &sync.RWMutex{},
         players: []*GameClientConnection{},

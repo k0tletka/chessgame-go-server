@@ -10,7 +10,7 @@ import (
 
     ws "GoChessgameServer/websocket"
     c "GoChessgameServer/conf"
-    u "GoChessgameServer/util"
+    "GoChessgameServer/database"
 
     "github.com/gorilla/websocket"
 )
@@ -26,13 +26,16 @@ type StaticPeerConnection struct {
 // programm API for other modules
 type DHTManager struct {
     // Store of server connections
-    WsServerConns *ws.WebsocketStore
-
-    // Store of client connections
-    WsClientConns *ws.WebsocketStore
+    wsConns *ws.WebsocketStore
 
     // List with connect information about static peers and connection object
     staticPeerConnections []*StaticPeerConnection
+
+    // List of connections, those data stored in database
+    databasePeerConnections map[string]*ws.WebsocketConnection
+
+    // Read synchronization channel to wait for connection response
+    readSynchronizationChannels map[*ws.WebsocketConnection]chan *dhtAPIBaseRequest
 
     // Websocket dialer
     wsDialer *websocket.Dialer
@@ -40,12 +43,11 @@ type DHTManager struct {
 
 func CreateNewDHTManager() *DHTManager {
     wsDialer := &websocket.Dialer{
-        HandshakeTimeout: 5 * time.Second,
+        HandshakeTimeout: 3 * time.Second,
     }
 
     newManager := &DHTManager {
-        WsServerConns: &ws.WebsocketStore{},
-        WsClientConns: &ws.WebsocketStore{},
+        wsConns: &ws.WebsocketStore{},
         staticPeerConnections: []*StaticPeerConnection{},
         wsDialer: wsDialer,
     }
@@ -57,6 +59,11 @@ func CreateNewDHTManager() *DHTManager {
     go newManager.startHandshakeProcedure()
 
     return newManager
+}
+
+// Public program API
+func (m *DHTManager) GetServerIdentifier() string {
+    return hex.EncodeToString(dhtServerIdentifier[:])
 }
 
 func (m *DHTManager) fillStaticPeerConnections() {
@@ -72,9 +79,17 @@ func (m *DHTManager) startHandshakeProcedure() {
     var handshakeTimeout uint
 
     if !c.DecodeMetadata.IsDefined("dht_api", "handshake_period") {
-        handshakeTimeout = 300 // 5 minutes default
+        handshakeTimeout = 60 // 1 minute for default
     } else {
         handshakeTimeout = c.Conf.DHTApi.HandshakePeriod
+    }
+
+    var connectionLimit uint
+
+    if !c.DecodeMetadata.IsDefined("dht_api", "connections_limit") {
+        connectionLimit = 5 // 5 is default
+    } else {
+        connectionLimit = c.Conf.DHTApi.ConnectionsLimit
     }
 
     for {
@@ -85,7 +100,11 @@ func (m *DHTManager) startHandshakeProcedure() {
 
             // If connection is nil or connection closed, create new connection
             if v.Connection == nil || v.Connection.Closed() {
-                wsConn, err := m.createConnection(v)
+                wsConn, err := m.createConnection(
+                    v.StaticPeer.ServerName,
+                    v.StaticPeer.ConnectionPort,
+                    v.StaticPeer.UseTLS,
+                )
 
                 if err != nil {
                     dhtLogger.Printf("Connection to %s peer failed: %s\n", v.StaticPeer.ServerName, err.Error())
@@ -93,43 +112,48 @@ func (m *DHTManager) startHandshakeProcedure() {
                 }
 
                 // Add connection to list
-                conn = ws.NewWebsocketConnection(wsConn, m.connectionClientReadHandler, m.WsClientConns)
+                conn = ws.NewWebsocketConnection(wsConn, m.connectionReadHandler, m.wsConns)
                 v.Connection = conn
             } else {
                 conn = v.Connection
             }
 
-            // Get listening port of server api
-            _, listenport := getListenInformation()
+            m.sendHandshakeRequest(conn, connectionLimit)
+        }
 
-            // Connection exist, so just send handshake message
-            request := struct{
-                ServerIdentifier    string  `json:"server_identifier"`
-                ServerAPIPort       uint16  `json:"server_api_port"`
-            }{
-                ServerIdentifier: hex.EncodeToString(dhtServerIdentifier[:]),
-                ServerAPIPort: listenport,
+        // Enstablish connections with database hosts
+        databaseHosts := []database.DHTHosts{}
+
+        database.DB.
+            Where("is_peer_static = ?", false).
+            Where("srv_local_identifier = ?", dhtServerIdentifier[:]).
+            Find(&databaseHosts)
+
+        for _, v := range databaseHosts {
+            encodedIdentifier := hex.EncodeToString(v.ServerIdentifier)
+
+            // If host connected already, just use connection
+            var conn *ws.WebsocketConnection
+
+            if mConn, ok := m.databasePeerConnections[encodedIdentifier]; ok && mConn != nil && !mConn.Closed() {
+                conn = mConn
+            } else {
+                wsConn, err := m.createConnection(
+                    v.IPAddress,
+                    v.Port,
+                    v.UseTLS,
+                )
+
+                if err != nil {
+                    dhtLogger.Printf("Connection to %s peer failed: %s\n", v.IPAddress, err.Error())
+                    continue
+                }
+
+                conn = ws.NewWebsocketConnection(wsConn, m.connectionReadHandler, m.wsConns)
+                m.databasePeerConnections[encodedIdentifier] = conn
             }
 
-            var data []byte
-            var err error
-
-            if data, err = json.Marshal(&request); err != nil {
-                dhtLogger.Printf("Error when marshalling request to peer %s: %s\n", v.StaticPeer.ServerName, err.Error())
-                continue
-            }
-
-            baseRequest := dhtAPIBaseRequest{
-                MethodName: "handshake",
-                Args: data,
-            }
-
-            if data, err = json.Marshal(&baseRequest); err != nil {
-                dhtLogger.Printf("Error when marshalling request to peer %s: %s\n", v.StaticPeer.ServerName, err.Error())
-                continue
-            }
-
-            conn.GetConnection().WriteMessage(websocket.TextMessage, data)
+            m.sendHandshakeRequest(conn, connectionLimit)
         }
 
         // Sleep until next handshake timeout
@@ -137,12 +161,50 @@ func (m *DHTManager) startHandshakeProcedure() {
     }
 }
 
-func (m *DHTManager) createConnection(s *StaticPeerConnection) (*websocket.Conn, error) {
+func (m *DHTManager) sendHandshakeRequest(conn *ws.WebsocketConnection, connectionLimit uint) {
+    // Get listening port of server api
+    _, listenport := getListenInformation()
+
+    // Connection exist, so just send handshake message
+    request := struct{
+        ServerIdentifier    string  `json:"server_identifier"`
+        ServerAPIPort       uint16  `json:"server_api_port"`
+        UseTLS              bool    `json:"use_tls"`
+        ConnectionLimit     uint    `json:"connection_limit"`
+    }{
+        ServerIdentifier: m.GetServerIdentifier(),
+        ServerAPIPort: listenport,
+        UseTLS: c.Conf.DHTApi.UseTLS,
+        ConnectionLimit: connectionLimit,
+    }
+
+    var data []byte
+    var err error
+
+    if data, err = json.Marshal(&request); err != nil {
+        dhtLogger.Printf("Error when marshalling request to peer %s: %s\n", conn.GetConnection().RemoteAddr(), err.Error())
+        return
+    }
+
+    baseRequest := dhtAPIBaseRequest{
+        MethodName: "handshake",
+        Args: data,
+    }
+
+    if data, err = json.Marshal(&baseRequest); err != nil {
+        dhtLogger.Printf("Error when marshalling request to peer %s: %s\n", conn.GetConnection().RemoteAddr(), err.Error())
+        return
+    }
+
+    conn.GetConnection().WriteMessage(websocket.TextMessage, data)
+}
+
+func (m *DHTManager) createConnection(server string, port uint16, useTls bool) (*websocket.Conn, error) {
     // Connect with timeout
     var timeout uint
 
     if !c.DecodeMetadata.IsDefined("dht_api", "peer_connection_timeout") {
-        timeout = 5 // 5 seconds by default
+        timeout = 3 // 5 seconds by default
     } else {
         timeout = c.Conf.DHTApi.PeerConnTimeout
     }
@@ -152,46 +214,10 @@ func (m *DHTManager) createConnection(s *StaticPeerConnection) (*websocket.Conn,
 
     conn, _, err := m.wsDialer.DialContext(context, fmt.Sprintf(
         "ws%s://%s:%d/ws",
-        map[bool]string{true: "s", false: ""}[s.StaticPeer.UseTLS],
-        s.StaticPeer.ServerName,
-        s.StaticPeer.ConnectionPort,
+        map[bool]string{true: "s", false: ""}[useTls],
+        server,
+        port,
     ), http.Header{})
 
     return conn, err
-}
-
-// Main read handler for connections
-func (m *DHTManager) connectionClientReadHandler(wc *ws.WebsocketConnection, data []byte) {
-    conn := wc.GetConnection()
-    response := dhtAPIBaseRequest{}
-
-    if err := json.Unmarshal(data, &response); err != nil {
-        // Try to parse into error object
-        errorObject := struct{
-            Error   string  `json:"error"`
-        }{}
-
-        if err := json.Unmarshal(data, &errorObject); err != nil {
-            dhtLogger.Printf("Error when trying to unmarshal response object from %s: %s\n", conn.RemoteAddr(), err.Error())
-            return
-        }
-
-        dhtLogger.Printf("Error response from %s: %s\n", conn.RemoteAddr(), errorObject.Error)
-        return
-    }
-
-    // Route requests
-    routingPaths := map[string]func(*ws.WebsocketConnection, []byte){
-        "handshake": m.handshakeMethodClientHandler,
-    }
-
-    if handler, ok := routingPaths[response.MethodName]; ok {
-        handler(wc, response.Args)
-    } else {
-        conn.WriteMessage(websocket.TextMessage, u.ErrorJson("There is no handler for provided method"))
-    }
-}
-
-// Client handler of handshake request
-func (m *DHTManager) handshakeMethodClientHandler(wc *ws.WebsocketConnection, data []byte) {
 }
