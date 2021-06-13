@@ -96,23 +96,6 @@ func websocketReadHandler(wc *ws.WebsocketConnection, data []byte) {
             gameApiLogger.Printf("Invalid token passed from %s\n", conn.RemoteAddr())
             return
         }
-
-        // Get connection session
-        /*session, err := auth.SessionStore.GetSession(tokenData.Login)
-        if err != nil {
-            // Session must be in store, throw error
-            conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Session not found for this connection"))
-            return
-        }
-
-        if session.WSConnection == nil || session.WSConnection.Closed() {
-            session.WSConnection = wc
-        } else {
-            // Connection not closed, can't handle other connection
-            conn.WriteMessage(websocket.TextMessage, u.ErrorJson("User already connected"))
-            wc.CloseConnection("User already connected")
-            return
-        }*/
     }
 
     // Perform request routing based on request method

@@ -43,9 +43,10 @@ func LoginUsers(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Password valid, generate jwt token
+    // Password valid, generate user and server jwt token
     claim := &auth.JWTUserClaim{Login: req.Login}
     token, err := auth.GenerateJWTToken(claim)
+    serverToken, err := auth.GenerateServerJWTToken(claim)
 
     if err != nil {
         writeError("Internal server error")
@@ -53,11 +54,13 @@ func LoginUsers(w http.ResponseWriter, r *http.Request) {
     }
     // Write response
     resp := struct{
-        Login string `json:"login"`
-        JWTToken string `json:"token"`
+        Login           string  `json:"login"`
+        JWTToken        string  `json:"token"`
+        ServerJWTToken  string  `json:"server_token"`
     }{
         Login: req.Login,
         JWTToken: token,
+        ServerJWTToken: serverToken,
     }
 
     if err = json.NewEncoder(w).Encode(resp); err != nil {

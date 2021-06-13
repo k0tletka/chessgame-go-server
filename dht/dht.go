@@ -31,8 +31,10 @@ func init() {
 // Type that represents DHT host information
 type DHTHostInformation struct {
     ClientAPIIPAddress  string  `json:"client_api_address"`
+    ClientAPITLS        bool    `json:"client_api_tls"`
     ClientAPIPort       uint16  `json:"client_api_port"`
     GameAPIIPAddress    string  `json:"game_api_address"`
+    GameAPITLS          bool    `json:"game_api_tls"`
     GameAPIPort         uint16  `json:"game_api_port"`
 }
 

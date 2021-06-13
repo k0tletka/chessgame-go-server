@@ -4,7 +4,7 @@ import (
     "encoding/json"
 
     ws "GoChessgameServer/websocket"
-    c "GoChessgameServer/util"
+    c "GoChessgameServer/conf"
     u "GoChessgameServer/util"
 
     "github.com/gorilla/websocket"
@@ -14,16 +14,20 @@ func (m *DHTManager) hostinfoMethodHandler(wc *ws.WebsocketConnection, data *dht
     conn := wc.GetConnection()
 
     // Get listening info
-    _, listenportCapi := c.GetListenInformationClientAPI()
-    _, listenportGapi := c.GetListenInformationGameAPI()
+    _, listenportCapi := u.GetListenInformationClientAPI()
+    _, listenportGapi := u.GetListenInformationGameAPI()
 
 
     response := struct{
         ClientAPIPort   uint16  `json:"client_api_port"`
+        ClientAPITLS    bool    `json:"client_api_tls"`
         GameAPIPort     uint16  `json:"game_api_port"`
+        GameAPITLS      bool    `json:"game_api_tls"`
     }{
         ClientAPIPort: listenportCapi,
+        ClientAPITLS: c.Conf.CAPI.UseTLS,
         GameAPIPort: listenportGapi,
+        GameAPITLS: c.Conf.GAPI.UseTLS,
     }
 
     var resData []byte
