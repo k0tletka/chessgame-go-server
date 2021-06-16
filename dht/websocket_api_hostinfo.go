@@ -30,18 +30,20 @@ func (m *DHTManager) hostinfoMethodHandler(wc *ws.WebsocketConnection, data *dht
         GameAPITLS: c.Conf.GAPI.UseTLS,
     }
 
-    var resData []byte
+    var argsData []byte
     var err error
 
-    if resData, err = json.Marshal(&response); err != nil {
+    if argsData, err = json.Marshal(&response); err != nil {
         conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Error occured when marshalling request: " + err.Error()))
         return
     }
 
     baseResponse := dhtAPIBaseRequest{
         MethodName: "hostinfo_response",
-        Args: resData,
+        Args: argsData,
     }
+
+    var resData []byte
 
     if resData, err = json.Marshal(&baseResponse); err != nil {
         conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Error occured when marshalling request: " + err.Error()))

@@ -90,9 +90,9 @@ func (m *DHTManager) handshakeMethodHandler(wc *ws.WebsocketConnection, data *dh
         })
     }
 
-    var resData []byte
+    var argsData []byte
 
-    if resData, err = json.Marshal(&results); err != nil {
+    if argsData, err = json.Marshal(&results); err != nil {
         conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Error occured when marshalling request: " + err.Error()))
         return
     }
@@ -100,8 +100,10 @@ func (m *DHTManager) handshakeMethodHandler(wc *ws.WebsocketConnection, data *dh
     // Send result back to client
     response := dhtAPIBaseRequest{
         MethodName: "handshake_response",
-        Args: resData,
+        Args: argsData,
     }
+
+    var resData []byte
 
     if resData, err = json.Marshal(&response); err != nil {
         conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Error occured when marshalling request: " + err.Error()))

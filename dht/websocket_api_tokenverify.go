@@ -26,10 +26,10 @@ func (m *DHTManager) tokenverifyMethodHandler(wc *ws.WebsocketConnection, data *
     tokenData, verified := auth.VerifyServerToken(request.TokenToVerify)
 
     // Write response
-    var resData []byte
+    var tokenByteData []byte
     var err error
 
-    if resData, err = json.Marshal(&tokenData); err != nil {
+    if tokenByteData, err = json.Marshal(&tokenData); err != nil {
         conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Invalid request"))
         return
     }
@@ -39,18 +39,22 @@ func (m *DHTManager) tokenverifyMethodHandler(wc *ws.WebsocketConnection, data *
         TokenData   json.RawMessage `json:"token_data"`
     }{
         Verified: verified,
-        TokenData: resData,
+        TokenData: tokenByteData,
     }
 
-    if resData, err = json.Marshal(&response); err != nil {
+    var argsData []byte
+
+    if argsData, err = json.Marshal(&response); err != nil {
         conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Error when marshalling response: " + err.Error()))
         return
     }
 
     baseResponse := dhtAPIBaseRequest{
         MethodName: "tokenverify_response",
-        Args: resData,
+        Args: argsData,
     }
+
+    var resData []byte
 
     if resData, err = json.Marshal(&baseResponse); err != nil {
         conn.WriteMessage(websocket.TextMessage, u.ErrorJson("Error when marshalling response: " + err.Error()))

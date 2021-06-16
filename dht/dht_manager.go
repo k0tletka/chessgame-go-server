@@ -138,7 +138,7 @@ func (m *DHTManager) VerifyServerToken(tokenString, serverIdentifier string) (*a
         var err error
 
         request := struct{
-            TokenToVerify   string  `json:"token"`
+            TokenToVerify   string  `json:"verify"`
         }{
             TokenToVerify: tokenString,
         }
@@ -148,7 +148,7 @@ func (m *DHTManager) VerifyServerToken(tokenString, serverIdentifier string) (*a
         }
 
         baseRequest := dhtAPIBaseRequest{
-            MethodName: "verifytoken",
+            MethodName: "tokenverify",
             Args: data,
         }
 
